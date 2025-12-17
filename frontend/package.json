@@ -1,0 +1,28 @@
+{
+  "name": "qr-studio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Professional QR Code Generator - Desktop and Web Application",
+  "scripts": {
+    "dev": "vite",
+    "dev:web": "vite",
+    "build": "vite build",
+    "build:web": "vite build",
+    "build:wails": "cross-env WAILS_BUILD=true vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lucide-react": "^0.555.0",
+    "qr-code-styling": "^1.9.2",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "@vitejs/plugin-react": "^5.0.0",
+    "cross-env": "^10.1.0",
+    "typescript": "~5.8.2",
+    "vite": "^6.2.0"
+  }
+}

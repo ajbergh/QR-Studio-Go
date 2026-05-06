@@ -32,7 +32,12 @@ Updated: 2025-12-16
 ================================================================================
 */
 
-import { Template, STORAGE_KEYS } from './storage';
+/** Shape of a legacy localStorage template record. */
+interface Template {
+  id: string;
+  name: string;
+  settings: Record<string, unknown>;
+}
 
 // ============================================================================
 // TYPES

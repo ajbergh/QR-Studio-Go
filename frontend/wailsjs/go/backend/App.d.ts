@@ -41,8 +41,6 @@ export function GetTemplateCount():Promise<number>;
 
 export function GetVersion():Promise<string>;
 
-export function Greet(arg1:string):Promise<string>;
-
 export function ImportTemplates(arg1:string):Promise<number>;
 
 export function IsDesktopMode():Promise<boolean>;

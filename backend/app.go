@@ -195,18 +195,6 @@ func (a *App) Shutdown(ctx context.Context) {
 // The following methods are exposed to the React frontend via Wails bindings.
 // They are generated into frontend/wailsjs/go/backend/App.js
 
-// Greet is a simple test method to verify frontend-backend communication.
-// This can be removed once the full implementation is complete.
-//
-// Parameters:
-//   - name: Name to include in greeting
-//
-// Returns:
-//   - string: Greeting message
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, welcome to QR Studio!", name)
-}
-
 // GetVersion returns the current application version.
 // Used by the frontend to display version info and check compatibility.
 //

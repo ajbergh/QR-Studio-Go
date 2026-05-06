@@ -11,6 +11,8 @@ node_modules
 dist
 dist-ssr
 *.local
+*.exe
+*.zip
 
 # Editor directories and files
 .vscode/*
@@ -25,3 +27,5 @@ dist-ssr
 docs_internal/*
 frontend/playwright-report/*
 frontend/test-results/*
+build/bin/*
+output/*

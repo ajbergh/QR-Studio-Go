@@ -3,10 +3,11 @@
 Short, actionable instructions to help AI agents be productive in this repo.
 
 ## Quick summary
-- React + TypeScript frontend with Go/Wails backend for Windows desktop app.
-- Dual-mode: runs as web app (browser) or native Windows application (Wails).
+- React + TypeScript frontend with Go/Wails backend for desktop (Windows, macOS, Linux).
+- Dual-mode: runs as browser-based web app or native desktop application via Wails.
 - QR generation uses `qr-code-styling` library on the frontend.
 - Storage: localStorage (web) or SQLite database (desktop).
+- E2E tests: Playwright (`frontend/e2e/`).
 
 ## Project Architecture
 
@@ -21,11 +22,18 @@ QR-Studio-Go/
 │   ├── contexts/         # React contexts (SettingsContext)
 │   ├── hooks/            # Custom hooks (keyboard shortcuts, window state)
 │   ├── services/         # Storage abstraction, migration, file export
+│   ├── e2e/              # Playwright E2E tests
 │   └── wailsjs/          # Wails-generated TypeScript bindings
-├── build/                # Build output (QRStudio.exe)
+├── scripts/              # Build & dev scripts (PS1)
+│   ├── build-wails-windows.ps1
+│   ├── build-wails-macos.ps1
+│   ├── build-wails-linux.ps1
+│   ├── build-web.ps1
+│   └── dev-backend.ps1
+├── build/                # Build output (executables)
+├── docs_internal/        # Architecture and roadmap docs
 ├── main.go               # Wails entry point
-├── wails.json            # Wails configuration
-└── build.ps1             # Windows build script
+└── wails.json            # Wails configuration
 ```
 
 ## Key files & where to look
@@ -59,22 +67,28 @@ QR-Studio-Go/
 ```powershell
 cd frontend
 npm install
-npm run dev     # Vite dev server at localhost:5173
+npm run dev     # Vite dev server at localhost:3000
 ```
 
 ### Desktop Development
 ```powershell
-wails dev       # Hot-reload desktop app
+wails dev       # Hot-reload desktop app (Wails manages Vite internally)
+
+# Or run Vite and the Go backend in separate terminals:
+cd frontend; npm run dev                                     # Terminal 1
+.\scripts\dev-backend.ps1 -ViteUrl http://localhost:3000     # Terminal 2
 ```
 
 ### Production Builds
 ```powershell
-# Desktop (Windows)
-.\build.ps1           # Full build → build/bin/QRStudio.exe
-.\build.ps1 -Clean    # Clean build directories first
+# Desktop
+.\scripts\build-wails-windows.ps1                   # Windows x64
+.\scripts\build-wails-windows.ps1 -Architecture all # Windows x64 + ARM64
+.\scripts\build-wails-macos.ps1                     # macOS Universal
+.\scripts\build-wails-linux.ps1                     # Linux x64
 
 # Web only
-cd frontend && npm run build:web
+.\scripts\build-web.ps1     # Output: frontend/dist/
 ```
 
 ## Important patterns & conventions 🔧
@@ -183,8 +197,12 @@ registerShortcut('save', SHORTCUTS.SAVE, handleSave);
 - Go backend uses `os.UserConfigDir()` for portable paths
 
 ## Tests & CI
-- No automated tests currently — manual smoke tests recommended
-- Test both web mode (`npm run dev`) and desktop mode (`wails dev`)
+- E2E tests: Playwright (`frontend/e2e/`) — smoke tests + QR generation tests
+- Run tests: `cd frontend && npm run test:e2e` (auto-starts Vite)
+- UI mode: `npm run test:e2e:ui`
+- Headed: `npm run test:e2e:headed`
+- Config: `frontend/playwright.config.ts` (Chromium, Firefox, WebKit, Mobile Chrome)
+- Always test both web mode (`npm run dev`) and desktop mode (`wails dev`)
 - Verify: template save/load, export (PNG/JPEG/SVG), clipboard, settings
 
 ## Database
@@ -202,11 +220,15 @@ SQLite database at `%APPDATA%\QRStudio\qr-studio.db`:
 
 | Command | Description |
 |---------|-------------|
-| `wails dev` | Desktop hot-reload development |
-| `wails build` | Desktop production build |
-| `cd frontend && npm run dev` | Web-only development |
-| `.\build.ps1` | Full Windows build with icon |
+| `wails dev` | Desktop hot-reload (Wails manages Vite) |
+| `cd frontend; npm run dev` | Web-only Vite dev server (localhost:3000) |
+| `.\scripts\dev-backend.ps1` | Go backend only (use with external Vite) |
+| `.\scripts\build-wails-windows.ps1` | Build Windows desktop executable |
+| `.\scripts\build-wails-macos.ps1` | Build macOS desktop app |
+| `.\scripts\build-wails-linux.ps1` | Build Linux desktop executable |
+| `.\scripts\build-web.ps1` | Build browser-based web app |
+| `cd frontend && npm run test:e2e` | Run Playwright E2E tests |
 | `go mod tidy` | Update Go dependencies |
 
 ---
-See [WAILS_IMPLEMENTATION.md](../WAILS_IMPLEMENTATION.md) for detailed implementation notes.
+See [docs_internal/WAILS_IMPLEMENTATION.md](../docs_internal/WAILS_IMPLEMENTATION.md) for detailed implementation notes.

@@ -43,7 +43,8 @@ Updated: 2025-12-16
 */
 
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { getStorageService, IStorageService, DEFAULT_SETTINGS, SETTING_KEYS } from '../services';
+import { getStorageService, DEFAULT_SETTINGS, SETTING_KEYS } from '../services';
+import type { IStorageService } from '../services';
 
 // ============================================================================
 // TYPES

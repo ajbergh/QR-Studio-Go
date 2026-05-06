@@ -1,6 +1,18 @@
+<p align="center">
+  <img src="assets/banner.svg" alt="QR Studio banner showing a live QR preview, design controls, and export options" width="100%" />
+</p>
+
 # QR Studio
 
 Professional QR code generator built with React + TypeScript and a Go/Wails backend. Runs as a browser-based web app **or** as a native desktop application on Windows, macOS, and Linux.
+
+## Highlights
+
+- Generate QR codes for URLs, text, email, Wi-Fi, vCard contacts, calendar events, and map locations.
+- Customize dot styles, corner styles, frames, gradients, transparent backgrounds, logos, and background images.
+- Save reusable Designs, import/export design JSON, and start from built-in professional presets.
+- Export PNG, SVG, JPEG, or WebP, export multiple sizes at once, customize filenames, copy to clipboard, share, print, and save QR codes to the in-app gallery.
+- Use the same React UI in web mode and Wails desktop mode with a storage abstraction for browser `localStorage` or desktop SQLite.
 
 ---
 
@@ -85,12 +97,13 @@ QR-Studio-Go/
 │   ├── index.tsx             # Entry point
 │   ├── types.ts              # QRSettings, DotType, FrameStyle, etc.
 │   ├── components/
-│   │   ├── QRControls.tsx    # Content, design, color, template controls
-│   │   ├── QRPreview.tsx     # Live QR preview + export
-│   │   ├── SettingsPanel.tsx # User preferences modal
-│   │   └── ui/               # Button, Input, Slider, ColorPicker, Tabs
+│   │   ├── QRControls.tsx    # Content, design, colors, logo, and Designs controls
+│   │   ├── QRPreview.tsx     # Live preview, export, copy, share, print, gallery save
+│   │   ├── SettingsPanel.tsx # User preferences slide-over
+│   │   └── ui/               # Button, Input, Slider, ColorPicker, Tabs, Toast
 │   ├── contexts/
-│   │   └── SettingsContext.tsx
+│   │   ├── SettingsContext.tsx
+│   │   └── ToastContext.tsx
 │   ├── hooks/
 │   │   ├── useKeyboardShortcuts.ts
 │   │   └── useWindowState.ts
@@ -111,9 +124,10 @@ QR-Studio-Go/
 │   └── build.ps1             # Legacy Windows build script
 ├── build/                    # Build output (generated)
 │   └── bin/                  # Compiled executables
-├── docs_internal/            # Internal documentation
-│   ├── WAILS_IMPLEMENTATION.md
+├── docs_internal/            # Internal roadmap documentation
 │   └── ROADMAP.md
+├── doc_internal/             # Internal review reports
+│   └── playwright_visual_review_2026-05-06.md
 ├── main.go                   # Wails entry point
 ├── go.mod                    # Go module (go 1.25, wails v2.11)
 └── wails.json                # Wails configuration
@@ -141,12 +155,13 @@ Always access storage through the factory — never touch `localStorage` or Wail
 
 ```typescript
 import { getStorageService } from './services';
+import { SETTING_KEYS } from './services';
 
 const storage = getStorageService();
 const templates = await storage.getTemplates();
-await storage.saveTemplate(id, name, settings);
-await storage.saveSetting('theme', 'dark');
-const theme  = await storage.getSetting('theme', 'system');
+await storage.saveTemplate({ ...settings, id: `tpl_${Date.now()}`, name: 'My Design' });
+await storage.setSetting(SETTING_KEYS.THEME, 'dark');
+const theme = await storage.getSetting(SETTING_KEYS.THEME);
 ```
 
 ### First-Run Migration (Desktop)
@@ -168,20 +183,21 @@ const result = await initMigration();
 |------|--------|
 | URL / Text / Email | Free-form text |
 | Wi-Fi | SSID, password, encryption (WEP/WPA/none), hidden |
-| vCard | Name, phone, mobile, email, website, company, address |
+| vCard | Name, phone, mobile, email, website, company, job title, address |
 | Calendar Event | Title, location, description, start/end time |
 | Location | Latitude, longitude |
 
 ---
 
-## ⌨️ Keyboard Shortcuts (Desktop)
+## ⌨️ Keyboard Shortcuts
 
 | Shortcut | Action |
 |----------|--------|
-| `Ctrl+S` | Save template |
-| `Ctrl+E` | Export QR code |
 | `Ctrl+,` | Open settings |
 | `Escape` | Close dialogs |
+| `Ctrl+Z` | Undo the last QR setting change |
+| `Ctrl+Shift+Z` | Redo the last undone QR setting change |
+| `Ctrl+Shift+S` | Save the current QR code to the gallery |
 
 ---
 
@@ -191,10 +207,10 @@ SQLite database — tables:
 
 | Table | Purpose |
 |-------|---------|
-| `templates` | Saved QR templates (id, name, settings JSON, preview BLOB) |
+| `templates` | Saved QR designs (id, name, settings JSON, logo/background BLOBs) |
 | `settings` | Key-value user preferences |
 | `history` | Export history with timestamps |
-| `_migrations` | Schema version tracking |
+| `schema_version` | Schema version tracking |
 
 ---
 
@@ -217,25 +233,27 @@ User settings stored in the database (desktop) or `localStorage` (web):
 | Key | Values | Default |
 |-----|--------|---------|
 | `theme` | `light`, `dark`, `system` | `system` |
-| `exportFormat` | `png`, `svg`, `jpeg` | `png` |
-| `defaultSize` | 100–2000 | `1000` |
-| `autoSave` | `true`, `false` | `false` |
+| `default_export_format` | `png`, `svg`, `jpeg`, `webp` | `png` |
+| `default_qr_size` | 100–4000 | `1000` |
+| `default_error_correction` | `L`, `M`, `Q`, `H` | `M` |
+| `show_history` | `true`, `false` | `true` |
+| `auto_save_templates` | `true`, `false` | `false` |
 
 ---
 
 ## ⚠️ Known Limitations
 
-- Frame export supports PNG/JPEG only (SVG frames not yet supported)
 - Web mode storage capped at ~5–10 MB (browser `localStorage` quota)
-- Clipboard copy may fail in insecure (non-HTTPS) contexts
-- Cross-compiling for macOS or Linux requires the target platform's toolchain due to CGO (SQLite)
+- Clipboard copy and native share can fail in insecure or unsupported browser contexts
+- The web frontend currently uses the Tailwind CDN in `index.html`; migrate to a local Tailwind/PostCSS build before hardening a public production deployment
+- Cross-platform desktop builds require the target platform's packaging toolchain and Wails dependencies
 
 ---
 
 ## 📚 Internal Documentation
 
-- [docs_internal/WAILS_IMPLEMENTATION.md](docs_internal/WAILS_IMPLEMENTATION.md) — architecture decisions and implementation notes
 - [docs_internal/ROADMAP.md](docs_internal/ROADMAP.md) — planned features and backlog
+- [doc_internal/playwright_visual_review_2026-05-06.md](doc_internal/playwright_visual_review_2026-05-06.md) — latest visual review findings and fixes
 
 ---
 
@@ -244,4 +262,4 @@ User settings stored in the database (desktop) or `localStorage` (web):
 1. Create feature branches and open PRs against `main`
 2. Test in both web mode (`npm run dev`) and desktop mode (`wails dev`)
 3. Use the storage abstraction — never access `localStorage` or Wails IPC directly from components
-4. Update `docs_internal/WAILS_IMPLEMENTATION.md` for significant architecture changes
+4. Update `docs_internal/ROADMAP.md` or add a `doc_internal/` report for significant architecture, UX, or testing changes

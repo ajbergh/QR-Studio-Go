@@ -4,7 +4,7 @@ export type CornerSquareType = 'dot' | 'square' | 'extra-rounded';
 export type CornerDotType = 'dot' | 'square';
 export type ErrorCorrectionLevel = 'L' | 'M' | 'Q' | 'H';
 export type GradientType = 'linear' | 'radial';
-export type FrameStyle = 'none' | 'simple' | 'balloon' | 'badge';
+export type FrameStyle = 'none' | 'simple' | 'balloon' | 'badge' | 'corners' | 'arrow';
 export type QRDataType = 'url' | 'text' | 'email' | 'wifi' | 'vcard' | 'event' | 'location';
 
 export interface GradientOptions {
@@ -18,6 +18,7 @@ export interface FrameOptions {
   text: string;
   color: string;
   textColor: string;
+  fontFamily?: string;
 }
 
 export interface WifiOptions {
@@ -85,6 +86,8 @@ export interface QRSettings {
     imageSize: number;
     margin: number;
     crossOrigin?: string;
+    /** 0 = square, 0.5 = circle (passed to qr-code-styling borderRadius) */
+    borderRadius?: number;
   };
   dotsOptions: {
     type: DotType;
@@ -107,4 +110,15 @@ export interface QRSettings {
     gradient?: GradientOptions;
   };
   frameOptions: FrameOptions;
+}
+
+/** A snapshot of a generated QR code saved by the user. */
+export interface SavedQR {
+  id: string;
+  /** Short label derived from the QR content */
+  label: string;
+  /** 400×400 PNG data URL thumbnail */
+  dataUrl: string;
+  dataType: QRDataType;
+  createdAt: string; // ISO string
 }

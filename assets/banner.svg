@@ -1,0 +1,162 @@
+<svg width="1200" height="400" viewBox="0 0 1200 400" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">QR Studio promotional banner</title>
+  <desc id="desc">QR Studio banner with a product headline, feature chips, QR preview, design controls, and export actions.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="400" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"/>
+      <stop offset="0.48" stop-color="#EEF6FF"/>
+      <stop offset="1" stop-color="#F7F3FF"/>
+    </linearGradient>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#4F46E5"/>
+      <stop offset="0.52" stop-color="#7C3AED"/>
+      <stop offset="1" stop-color="#0891B2"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#06B6D4"/>
+      <stop offset="1" stop-color="#F59E0B"/>
+    </linearGradient>
+    <pattern id="dotGrid" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1.2" fill="#CBD5E1" opacity="0.55"/>
+    </pattern>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#334155" flood-opacity="0.16"/>
+    </filter>
+    <filter id="smallShadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="10" flood-color="#334155" flood-opacity="0.14"/>
+    </filter>
+    <style>
+      .font { font-family: Inter, Arial, sans-serif; }
+      .ink { fill: #0F172A; }
+      .muted { fill: #64748B; }
+      .qr { fill: #334155; }
+      .line { stroke: #CBD5E1; stroke-width: 1; }
+    </style>
+  </defs>
+
+  <rect width="1200" height="400" rx="28" fill="url(#bg)"/>
+  <rect width="1200" height="400" rx="28" fill="url(#dotGrid)" opacity="0.55"/>
+
+  <circle cx="1046" cy="58" r="92" fill="#DBEAFE" opacity="0.8"/>
+  <circle cx="1132" cy="308" r="118" fill="#EDE9FE" opacity="0.7"/>
+  <circle cx="534" cy="338" r="86" fill="#CCFBF1" opacity="0.34"/>
+
+  <g transform="translate(64 62)">
+    <g filter="url(#smallShadow)">
+      <rect x="0" y="0" width="54" height="54" rx="14" fill="url(#brand)"/>
+      <path d="M15 17h10v10H15V17Zm14 0h10v10H29V17ZM15 31h10v10H15V31Zm14 0h4v4h-4v-4Zm8 0h4v10h-8v-4h4v-6Z" fill="white"/>
+    </g>
+
+    <text class="font ink" x="0" y="108" font-size="58" font-weight="800" letter-spacing="0">QR Studio</text>
+    <text class="font muted" x="2" y="146" font-size="21" font-weight="500">Professional QR generator for web and desktop</text>
+    <text class="font muted" x="2" y="178" font-size="16">Design branded QR codes, save presets, and export polished assets.</text>
+
+    <g transform="translate(0 212)" class="font" font-size="14" font-weight="700">
+      <rect x="0" y="0" width="86" height="34" rx="17" fill="#FFFFFF" stroke="#CBD5E1"/>
+      <circle cx="19" cy="17" r="5" fill="#4F46E5"/>
+      <text x="34" y="22" fill="#334155">Logos</text>
+
+      <rect x="106" y="0" width="136" height="34" rx="17" fill="#FFFFFF" stroke="#CBD5E1"/>
+      <path d="M124 22c8-16 20-16 28 0" stroke="#0891B2" stroke-width="4" stroke-linecap="round"/>
+      <text x="166" y="22" fill="#334155">Gradients</text>
+
+      <rect x="258" y="0" width="112" height="34" rx="17" fill="#FFFFFF" stroke="#CBD5E1"/>
+      <rect x="280" y="11" width="13" height="13" rx="3" fill="#F59E0B"/>
+      <text x="306" y="22" fill="#334155">Frames</text>
+
+      <rect x="386" y="0" width="112" height="34" rx="17" fill="#FFFFFF" stroke="#CBD5E1"/>
+      <path d="M408 12h16v12h-16V12Zm3-4h10" stroke="#7C3AED" stroke-width="2" stroke-linecap="round"/>
+      <text x="440" y="22" fill="#334155">Gallery</text>
+    </g>
+
+    <g transform="translate(0 264)">
+      <rect x="0" y="0" width="236" height="44" rx="14" fill="url(#brand)"/>
+      <path d="M22 17v11m0 0 6-6m-6 6-6-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <text class="font" x="44" y="28" font-size="15" font-weight="800" fill="white">Export PNG SVG WebP</text>
+    </g>
+  </g>
+
+  <g transform="translate(574 42)" filter="url(#softShadow)">
+    <rect x="0" y="0" width="562" height="316" rx="28" fill="#FFFFFF" stroke="#E2E8F0"/>
+
+    <g transform="translate(24 24)">
+      <rect x="0" y="0" width="154" height="268" rx="18" fill="#F8FAFC" stroke="#E2E8F0"/>
+      <text class="font ink" x="18" y="32" font-size="15" font-weight="800">Designs</text>
+      <rect x="18" y="52" width="118" height="9" rx="4.5" fill="#CBD5E1"/>
+      <rect x="18" y="76" width="52" height="52" rx="12" fill="#EEF2FF" stroke="#C7D2FE"/>
+      <rect x="84" y="76" width="52" height="52" rx="12" fill="#ECFEFF" stroke="#BAE6FD"/>
+      <rect x="18" y="144" width="118" height="11" rx="5.5" fill="#E2E8F0"/>
+      <rect x="18" y="166" width="118" height="11" rx="5.5" fill="#E2E8F0"/>
+      <rect x="18" y="188" width="118" height="11" rx="5.5" fill="#E2E8F0"/>
+      <rect x="18" y="220" width="118" height="28" rx="9" fill="#FFFFFF" stroke="#CBD5E1"/>
+      <text class="font muted" x="42" y="239" font-size="12" font-weight="700">Save design</text>
+
+      <g transform="translate(32 90)">
+        <rect width="8" height="8" rx="2" fill="#4F46E5"/>
+        <rect x="12" width="8" height="8" rx="2" fill="#7C3AED"/>
+        <rect y="12" width="8" height="8" rx="2" fill="#0891B2"/>
+        <rect x="12" y="12" width="8" height="8" rx="2" fill="#F59E0B"/>
+      </g>
+      <circle cx="110" cy="102" r="14" fill="url(#accent)"/>
+    </g>
+
+    <g transform="translate(215 36)">
+      <rect x="0" y="0" width="230" height="230" rx="28" fill="#FFFFFF" stroke="#E2E8F0"/>
+      <rect x="21" y="21" width="188" height="188" rx="18" fill="#FFFFFF"/>
+
+      <g class="qr" transform="translate(38 38)">
+        <rect x="0" y="0" width="42" height="42" rx="10"/>
+        <rect x="10" y="10" width="22" height="22" rx="7" fill="#FFFFFF"/>
+        <rect x="16" y="16" width="10" height="10" rx="3"/>
+        <rect x="110" y="0" width="42" height="42" rx="10"/>
+        <rect x="120" y="10" width="22" height="22" rx="7" fill="#FFFFFF"/>
+        <rect x="126" y="16" width="10" height="10" rx="3"/>
+        <rect x="0" y="110" width="42" height="42" rx="10"/>
+        <rect x="10" y="120" width="22" height="22" rx="7" fill="#FFFFFF"/>
+        <rect x="16" y="126" width="10" height="10" rx="3"/>
+
+        <rect x="58" y="0" width="10" height="10" rx="3"/>
+        <rect x="80" y="0" width="24" height="10" rx="4"/>
+        <rect x="58" y="20" width="28" height="10" rx="4"/>
+        <rect x="96" y="20" width="10" height="30" rx="4"/>
+        <rect x="54" y="42" width="18" height="10" rx="4"/>
+        <rect x="80" y="42" width="10" height="24" rx="4"/>
+        <rect x="112" y="52" width="40" height="10" rx="4"/>
+        <rect x="52" y="78" width="34" height="10" rx="4"/>
+        <rect x="94" y="72" width="10" height="34" rx="4"/>
+        <rect x="116" y="74" width="14" height="14" rx="4"/>
+        <rect x="140" y="80" width="12" height="32" rx="4"/>
+        <rect x="0" y="58" width="34" height="10" rx="4"/>
+        <rect x="0" y="80" width="18" height="10" rx="4"/>
+        <rect x="28" y="78" width="10" height="28" rx="4"/>
+        <rect x="52" y="112" width="22" height="10" rx="4"/>
+        <rect x="82" y="116" width="26" height="10" rx="4"/>
+        <rect x="116" y="118" width="36" height="10" rx="4"/>
+        <rect x="54" y="138" width="10" height="14" rx="4"/>
+        <rect x="76" y="138" width="38" height="10" rx="4"/>
+        <rect x="124" y="140" width="28" height="10" rx="4"/>
+      </g>
+
+      <g transform="translate(96 96)" filter="url(#smallShadow)">
+        <rect width="48" height="48" rx="12" fill="url(#brand)"/>
+        <path d="M13 14h9v9h-9v-9Zm13 0h9v9h-9v-9ZM13 27h9v9h-9v-9Zm13 0h4v4h-4v-4Zm8 0h4v9h-8v-4h4v-5Z" fill="white"/>
+      </g>
+    </g>
+
+    <g transform="translate(482 34)">
+      <rect x="0" y="0" width="48" height="48" rx="14" fill="#EEF2FF" stroke="#C7D2FE"/>
+      <path d="M15 16h18M15 24h18M15 32h12" stroke="#4F46E5" stroke-width="2.5" stroke-linecap="round"/>
+      <rect x="0" y="64" width="48" height="48" rx="14" fill="#ECFEFF" stroke="#BAE6FD"/>
+      <circle cx="24" cy="88" r="11" stroke="#0891B2" stroke-width="4"/>
+      <rect x="0" y="128" width="48" height="48" rx="14" fill="#FFF7ED" stroke="#FED7AA"/>
+      <path d="M24 142v20m-10-10h20" stroke="#F97316" stroke-width="3" stroke-linecap="round"/>
+    </g>
+
+    <g transform="translate(225 282)">
+      <rect x="0" y="0" width="190" height="12" rx="6" fill="#E2E8F0"/>
+      <rect x="0" y="0" width="92" height="12" rx="6" fill="url(#brand)"/>
+      <circle cx="92" cy="6" r="10" fill="#4F46E5" stroke="#FFFFFF" stroke-width="4"/>
+    </g>
+  </g>
+</svg>

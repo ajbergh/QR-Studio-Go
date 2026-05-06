@@ -30,12 +30,8 @@ Updated: 2025-12-16
 */
 
 import { QRSettings } from '../types';
-import { 
-  IStorageService, 
-  TEMPLATES_STORAGE_KEY, 
-  SETTINGS_STORAGE_KEY,
-  DEFAULT_SETTINGS 
-} from './storage';
+import type { IStorageService } from './storage';
+import { TEMPLATES_STORAGE_KEY, SETTINGS_STORAGE_KEY, DEFAULT_SETTINGS } from './storage';
 
 /**
  * LocalStorage implementation of IStorageService.

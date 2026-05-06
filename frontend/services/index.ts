@@ -30,7 +30,8 @@ Updated: 2025-12-16
 */
 
 // Re-export types and interfaces
-export { IStorageService, DEFAULT_SETTINGS, SETTING_KEYS, TEMPLATES_STORAGE_KEY } from './storage';
+export type { IStorageService } from './storage';
+export { DEFAULT_SETTINGS, SETTING_KEYS, TEMPLATES_STORAGE_KEY } from './storage';
 
 // Export implementations
 export { LocalStorageService } from './localStorage';
@@ -89,7 +90,7 @@ export {
 } from './version';
 
 // Import implementations for factory
-import { IStorageService } from './storage';
+import type { IStorageService } from './storage';
 import { LocalStorageService } from './localStorage';
 import { WailsStorageService, isWailsAvailable } from './wailsStorage';
 

@@ -25,7 +25,7 @@ Updated: 2025-12-16
 ================================================================================
 */
 
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { X, Sun, Moon, Monitor, Download, History, Save, Shield } from 'lucide-react';
 import { useSettings } from '../contexts/SettingsContext';
 import { Button } from './ui/Button';
@@ -51,6 +51,67 @@ interface SettingsPanelProps {
  */
 export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose }) => {
   const { settings, updateSetting, resetToDefaults, isLoading } = useSettings();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  // Focus trap: keep Tab/Shift+Tab inside the panel while open; Escape closes it
+  useEffect(() => {
+    if (!isOpen) return;
+
+    // Save the element that triggered the panel so we can restore focus on close
+    previousFocusRef.current = document.activeElement as HTMLElement;
+
+    const panel = panelRef.current;
+    if (!panel) return;
+
+    const FOCUSABLE = [
+      'button:not([disabled])',
+      'input:not([disabled])',
+      'select:not([disabled])',
+      'textarea:not([disabled])',
+      'a[href]',
+      '[tabindex]:not([tabindex="-1"])',
+    ].join(', ');
+
+    const getFocusable = () => Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+
+    // Auto-focus the first focusable element (close button) when the panel opens
+    const first = getFocusable()[0];
+    if (first) first.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+
+      const focusable = getFocusable();
+      if (!focusable.length) return;
+
+      const firstEl = focusable[0];
+      const lastEl = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstEl) {
+          e.preventDefault();
+          lastEl.focus();
+        }
+      } else {
+        if (document.activeElement === lastEl) {
+          e.preventDefault();
+          firstEl.focus();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown);
+      // Restore focus to the element that opened the panel
+      previousFocusRef.current?.focus();
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -94,7 +155,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ isOpen, onClose })
       />
       
       {/* Panel */}
-      <div className="fixed right-0 top-0 h-full w-96 max-w-full bg-white dark:bg-slate-900 shadow-2xl z-50 overflow-y-auto transition-transform">
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-label="Settings" className="fixed right-0 top-0 h-full w-96 max-w-full bg-white dark:bg-slate-900 shadow-2xl z-50 overflow-y-auto transition-transform">
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900 dark:text-white">Settings</h2>

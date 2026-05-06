@@ -33,6 +33,11 @@ export const Slider: React.FC<SliderProps> = ({
         max={max}
         step={step}
         value={value}
+        aria-label={label || `Slider (${min}–${max})`}
+        aria-valuemin={min}
+        aria-valuemax={max}
+        aria-valuenow={value}
+        aria-valuetext={`${value}${unit}`}
         onChange={(e) => onChange(Number(e.target.value))}
         className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2"
       />

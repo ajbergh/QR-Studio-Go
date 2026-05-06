@@ -16,6 +16,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ label, value, onChange
           <input
             type="color"
             value={value}
+            aria-label={`${label} color picker`}
             onChange={(e) => onChange(e.target.value)}
             className="absolute -top-1/2 -left-1/2 w-[200%] h-[200%] cursor-pointer p-0 border-0"
           />

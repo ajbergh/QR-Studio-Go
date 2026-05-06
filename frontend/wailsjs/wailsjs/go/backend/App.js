@@ -78,10 +78,6 @@ export function GetVersion() {
   return window['go']['backend']['App']['GetVersion']();
 }
 
-export function Greet(arg1) {
-  return window['go']['backend']['App']['Greet'](arg1);
-}
-
 export function ImportTemplates(arg1) {
   return window['go']['backend']['App']['ImportTemplates'](arg1);
 }

@@ -1,6 +1,6 @@
 # QR Studio
 
-Professional QR code generator with React + TypeScript frontend and optional Go/Wails desktop app. Supports both web browser and native Windows deployment.
+Professional QR code generator built with React + TypeScript and a Go/Wails backend. Runs as a browser-based web app **or** as a native desktop application on Windows, macOS, and Linux.
 
 ---
 
@@ -8,42 +8,59 @@ Professional QR code generator with React + TypeScript frontend and optional Go/
 
 ### Prerequisites
 
-**Web Mode:**
-- Node.js (>=18) and npm
+**Web mode only:**
+- Node.js 18+ and npm
 
-**Desktop Mode (Windows):**
-- Go 1.21+
-- Node.js 18+
-- Wails CLI v2.11+ (`go install github.com/wailsapp/wails/v2/cmd/wails@latest`)
+**Desktop mode (all platforms):**
+- Go 1.25+
+- Node.js 18+ and npm
+- Wails CLI v2.11+
+  ```
+  go install github.com/wailsapp/wails/v2/cmd/wails@latest
+  ```
 
 ### Web Development
 
 ```powershell
 cd frontend
 npm install
-npm run dev     # Open at http://localhost:5173
+npm run dev     # Vite dev server at http://localhost:3000
 ```
 
 ### Desktop Development
 
 ```powershell
-wails dev       # Hot-reload desktop app
+# Full hot-reload (Wails manages the Vite dev server automatically)
+wails dev
+
+# Or: start Vite and the Go backend separately
+cd frontend; npm run dev                                       # Terminal 1 — Vite at :3000
+.\scripts\dev-backend.ps1 -ViteUrl http://localhost:3000       # Terminal 2 — Go backend
 ```
 
 ### Production Builds
 
-**Desktop (Windows):**
+**Desktop:**
 ```powershell
-.\build.ps1           # Full build with icon generation
-.\build.ps1 -Clean    # Clean build directories first
-# Output: build/bin/QRStudio.exe
+.\scripts\build-wails-windows.ps1                          # Windows x64
+.\scripts\build-wails-windows.ps1 -Architecture arm64     # Windows ARM64
+.\scripts\build-wails-windows.ps1 -Architecture all       # Both Windows arches
+
+.\scripts\build-wails-macos.ps1                            # macOS Universal (Intel + Apple Silicon)
+.\scripts\build-wails-macos.ps1 -Architecture arm64       # Apple Silicon only
+.\scripts\build-wails-macos.ps1 -Architecture amd64       # Intel only
+
+.\scripts\build-wails-linux.ps1                            # Linux x64
+.\scripts\build-wails-linux.ps1 -Architecture arm64       # Linux ARM64
+.\scripts\build-wails-linux.ps1 -Architecture all         # Both Linux arches
 ```
+
+All desktop scripts accept `-Clean` and `-SkipDeps` flags.
 
 **Web:**
 ```powershell
-cd frontend
-npm run build:web     # Output: frontend/dist/
-npm run preview       # Preview production build
+.\scripts\build-web.ps1           # Build static site → frontend/dist/
+.\scripts\build-web.ps1 -Clean   # Clean dist first, then build
 ```
 
 ---
@@ -52,59 +69,75 @@ npm run preview       # Preview production build
 
 ```
 QR-Studio-Go/
-├── backend/                  # Go backend services
-│   ├── app.go                # Wails app struct with lifecycle hooks
-│   ├── database/             # SQLite database layer
-│   │   ├── db.go             # Connection manager
+├── backend/                  # Go backend
+│   ├── app.go                # Wails App struct + lifecycle hooks
+│   ├── database/
+│   │   ├── db.go             # SQLite connection manager (WAL mode)
 │   │   ├── migrations.go     # Schema migrations
-│   │   └── models.go         # Data models
-│   └── services/             # Backend services
+│   │   └── models.go         # Template, Setting, HistoryEntry structs
+│   └── services/
 │       ├── templates.go      # Template CRUD
-│       ├── settings.go       # User settings
-│       ├── export.go         # File operations
-│       └── history.go        # History tracking
-├── frontend/                 # React frontend
-│   ├── components/           # React components
-│   │   ├── QRControls.tsx    # Settings controls
-│   │   ├── QRPreview.tsx     # Live preview
-│   │   ├── SettingsPanel.tsx # User preferences
-│   │   └── ui/               # Reusable UI components
-│   ├── contexts/             # React contexts
-│   ├── hooks/                # Custom hooks
-│   ├── services/             # Frontend services
-│   │   ├── storage.ts        # Storage abstraction
-│   │   ├── localStorage.ts   # Web localStorage
-│   │   ├── wailsStorage.ts   # Desktop SQLite
-│   │   ├── migration.ts      # Data migration
-│   │   └── fileExport.ts     # File export
-│   └── wailsjs/              # Wails bindings
-├── build/                    # Build output
-│   └── bin/QRStudio.exe      # Windows executable
+│       ├── settings.go       # User settings persistence
+│       ├── export.go         # File export + native dialogs
+│       └── history.go        # Export history tracking
+├── frontend/                 # React + TypeScript frontend
+│   ├── App.tsx               # Root component, global QRSettings state
+│   ├── index.tsx             # Entry point
+│   ├── types.ts              # QRSettings, DotType, FrameStyle, etc.
+│   ├── components/
+│   │   ├── QRControls.tsx    # Content, design, color, template controls
+│   │   ├── QRPreview.tsx     # Live QR preview + export
+│   │   ├── SettingsPanel.tsx # User preferences modal
+│   │   └── ui/               # Button, Input, Slider, ColorPicker, Tabs
+│   ├── contexts/
+│   │   └── SettingsContext.tsx
+│   ├── hooks/
+│   │   ├── useKeyboardShortcuts.ts
+│   │   └── useWindowState.ts
+│   ├── services/
+│   │   ├── storage.ts        # IStorageService interface + factory
+│   │   ├── localStorage.ts   # Web localStorage implementation
+│   │   ├── wailsStorage.ts   # Desktop SQLite via Wails bindings
+│   │   ├── migration.ts      # localStorage → SQLite migration
+│   │   ├── fileExport.ts     # Native dialogs + file operations
+│   │   └── version.ts        # Semantic versioning + compat checks
+│   └── wailsjs/              # Wails-generated TypeScript bindings
+├── scripts/                  # Build and dev scripts
+│   ├── build-wails-windows.ps1
+│   ├── build-wails-macos.ps1
+│   ├── build-wails-linux.ps1
+│   ├── build-web.ps1
+│   ├── dev-backend.ps1       # Start backend only (use with external Vite)
+│   └── build.ps1             # Legacy Windows build script
+├── build/                    # Build output (generated)
+│   └── bin/                  # Compiled executables
+├── docs_internal/            # Internal documentation
+│   ├── WAILS_IMPLEMENTATION.md
+│   └── ROADMAP.md
 ├── main.go                   # Wails entry point
-├── wails.json                # Wails configuration
-├── build.ps1                 # Windows build script
-└── WAILS_IMPLEMENTATION.md   # Implementation details
+├── go.mod                    # Go module (go 1.25, wails v2.11)
+└── wails.json                # Wails configuration
 ```
 
 ---
 
 ## 🔧 Dual-Mode Architecture
 
-QR Studio runs in two modes with the same React frontend:
+QR Studio shares the same React frontend across both modes — the storage layer and file-export layer adapt automatically.
 
 ### Web Mode (Browser)
-- Storage: `localStorage` with `qr_studio_templates` key
+- Storage: `localStorage`
 - File export: Browser download API
-- Limitations: ~5-10MB storage quota, no native file dialogs
+- Limitation: ~5–10 MB storage quota, no native file dialogs
 
 ### Desktop Mode (Wails)
-- Storage: SQLite database at `%APPDATA%\QRStudio\qr-studio.db`
-- File export: Native Windows dialogs
-- Features: Unlimited storage, keyboard shortcuts, window state persistence
+- Storage: SQLite at `%APPDATA%\QRStudio\qr-studio.db` (Windows) / OS-equivalent path
+- File export: Native OS dialogs
+- Extras: Unlimited storage, keyboard shortcuts, window state persistence
 
 ### Storage Abstraction
 
-The frontend uses a unified storage interface:
+Always access storage through the factory — never touch `localStorage` or Wails IPC directly in components:
 
 ```typescript
 import { getStorageService } from './services';
@@ -112,23 +145,32 @@ import { getStorageService } from './services';
 const storage = getStorageService();
 const templates = await storage.getTemplates();
 await storage.saveTemplate(id, name, settings);
+await storage.saveSetting('theme', 'dark');
+const theme  = await storage.getSetting('theme', 'system');
 ```
 
-The factory automatically detects the runtime and returns the appropriate implementation.
+### First-Run Migration (Desktop)
 
-### Migration (Desktop First Run)
-
-When running the desktop app for the first time, templates from `localStorage` are automatically migrated to SQLite:
+On the first desktop launch, any templates saved in `localStorage` are automatically migrated to SQLite:
 
 ```typescript
 import { initMigration } from './services';
 
-// Called in App.tsx on mount
+// Called once in App.tsx on mount
 const result = await initMigration();
-if (result?.templatesImported > 0) {
-  console.log(`Migrated ${result.templatesImported} templates`);
-}
 ```
+
+---
+
+## QR Content Types
+
+| Type | Fields |
+|------|--------|
+| URL / Text / Email | Free-form text |
+| Wi-Fi | SSID, password, encryption (WEP/WPA/none), hidden |
+| vCard | Name, phone, mobile, email, website, company, address |
+| Calendar Event | Title, location, description, start/end time |
+| Location | Latitude, longitude |
 
 ---
 
@@ -137,31 +179,31 @@ if (result?.templatesImported > 0) {
 | Shortcut | Action |
 |----------|--------|
 | `Ctrl+S` | Save template |
-| `Ctrl+E` | Export QR |
+| `Ctrl+E` | Export QR code |
 | `Ctrl+,` | Open settings |
 | `Escape` | Close dialogs |
 
 ---
 
-## 🔧 Configuration
+## 🗄️ Database (Desktop)
 
-### User Settings
+SQLite database — tables:
 
-Stored in SQLite (desktop) or localStorage (web):
+| Table | Purpose |
+|-------|---------|
+| `templates` | Saved QR templates (id, name, settings JSON, preview BLOB) |
+| `settings` | Key-value user preferences |
+| `history` | Export history with timestamps |
+| `_migrations` | Schema version tracking |
 
-| Setting | Options | Default |
-|---------|---------|---------|
-| Theme | `light`, `dark`, `system` | `system` |
-| Export Format | `png`, `svg`, `jpeg` | `png` |
-| Default QR Size | 100-2000px | 1000 |
-| Auto Save | boolean | false |
+---
 
-### Build Configuration
+## ⚙️ Configuration
 
-**wails.json** - Desktop app settings:
+**wails.json** key settings:
 ```json
 {
-  "frontend:dir": "./frontend",
+  "frontend:build": "npm run build:wails",
   "outputfilename": "QRStudio",
   "info": {
     "productName": "QR Studio",
@@ -170,26 +212,36 @@ Stored in SQLite (desktop) or localStorage (web):
 }
 ```
 
+User settings stored in the database (desktop) or `localStorage` (web):
+
+| Key | Values | Default |
+|-----|--------|---------|
+| `theme` | `light`, `dark`, `system` | `system` |
+| `exportFormat` | `png`, `svg`, `jpeg` | `png` |
+| `defaultSize` | 100–2000 | `1000` |
+| `autoSave` | `true`, `false` | `false` |
+
 ---
 
 ## ⚠️ Known Limitations
 
-- Frame export supports PNG/JPEG only (no SVG)
-- Web mode storage limited to ~5-10MB
-- Clipboard may fail in insecure contexts
-- Windows-only desktop build (Linux/macOS possible with Wails)
+- Frame export supports PNG/JPEG only (SVG frames not yet supported)
+- Web mode storage capped at ~5–10 MB (browser `localStorage` quota)
+- Clipboard copy may fail in insecure (non-HTTPS) contexts
+- Cross-compiling for macOS or Linux requires the target platform's toolchain due to CGO (SQLite)
 
 ---
 
-## 📚 Documentation
+## 📚 Internal Documentation
 
-See [WAILS_IMPLEMENTATION.md](WAILS_IMPLEMENTATION.md) for detailed implementation notes, progress tracking, and architecture decisions.
+- [docs_internal/WAILS_IMPLEMENTATION.md](docs_internal/WAILS_IMPLEMENTATION.md) — architecture decisions and implementation notes
+- [docs_internal/ROADMAP.md](docs_internal/ROADMAP.md) — planned features and backlog
 
 ---
 
 ## Contributing
 
-1. Create feature branches and open PRs
-2. Focus on small, reversible commits
-3. Test both web and desktop modes
-4. Update WAILS_IMPLEMENTATION.md for significant changes
+1. Create feature branches and open PRs against `main`
+2. Test in both web mode (`npm run dev`) and desktop mode (`wails dev`)
+3. Use the storage abstraction — never access `localStorage` or Wails IPC directly from components
+4. Update `docs_internal/WAILS_IMPLEMENTATION.md` for significant architecture changes

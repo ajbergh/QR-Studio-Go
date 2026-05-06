@@ -22,3 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+docs_internal/*
+frontend/playwright-report/*
+frontend/test-results/*

@@ -10,7 +10,11 @@
     "build": "vite build",
     "build:web": "vite build",
     "build:wails": "cross-env WAILS_BUILD=true vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed --project=chromium",
+    "test:e2e:report": "playwright show-report"
   },
   "dependencies": {
     "lucide-react": "^0.555.0",
@@ -19,6 +23,7 @@
     "react-dom": "^19.2.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "cross-env": "^10.1.0",

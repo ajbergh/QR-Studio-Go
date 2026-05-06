@@ -1,0 +1,23 @@
+{
+  "recommendations": [
+    // Vite / frontend
+    "antfu.vite",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "bradlc.vscode-tailwindcss",
+
+    // React / TypeScript
+    "ms-vscode.vscode-typescript-next",
+    "dsznajder.es7-react-js-snippets",
+
+    // Playwright
+    "ms-playwright.playwright",
+
+    // Go / Wails
+    "golang.go",
+
+    // General
+    "editorconfig.editorconfig",
+    "streetsidesoftware.code-spell-checker"
+  ]
+}

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"database/sql"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -198,7 +197,7 @@ func (s *TemplateService) ImportTemplatesTransactional(templates []database.Temp
 
 func nullableBytes(value []byte) any {
 	if len(value) == 0 {
-		return sql.NullString{}
+		return nil
 	}
 	return value
 }

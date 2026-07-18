@@ -36,7 +36,6 @@ export function formatLocalDateTime(value = '') {
 export function validateQRContent(settings) {
   const errors = [];
   const type = settings?.dataType;
-
   if (type === 'url' && !String(settings.textContent || '').trim()) errors.push('Enter a URL.');
   if (type === 'text' && !String(settings.textContent || '').trim()) errors.push('Enter text.');
   if (type === 'email') {
@@ -63,14 +62,10 @@ export function validateQRContent(settings) {
 }
 
 export function buildQRPayload(settings) {
-  const type = settings.dataType;
-  switch (type) {
-    case 'url':
-      return normalizeURL(settings.textContent);
-    case 'text':
-      return String(settings.textContent || '');
-    case 'email':
-      return `mailto:${String(settings.textContent || '').trim()}`;
+  switch (settings.dataType) {
+    case 'url': return normalizeURL(settings.textContent);
+    case 'text': return String(settings.textContent || '');
+    case 'email': return `mailto:${String(settings.textContent || '').trim()}`;
     case 'wifi': {
       const wifi = settings.wifiOptions || {};
       const encryption = wifi.encryption || 'WPA';
@@ -80,52 +75,41 @@ export function buildQRPayload(settings) {
     case 'vcard': {
       const v = settings.vcardOptions || {};
       const fullName = `${v.firstName || ''} ${v.lastName || ''}`.trim();
-      const lines = [
-        'BEGIN:VCARD',
-        'VERSION:3.0',
-        `N:${escapeVCard(v.lastName)};${escapeVCard(v.firstName)};;;`,
-        `FN:${escapeVCard(fullName)}`,
-      ];
+      const lines = ['BEGIN:VCARD', 'VERSION:3.0', `N:${escapeVCard(v.lastName)};${escapeVCard(v.firstName)};;;`, `FN:${escapeVCard(fullName)}`];
       if (v.company) lines.push(`ORG:${escapeVCard(v.company)}`);
       if (v.jobTitle) lines.push(`TITLE:${escapeVCard(v.jobTitle)}`);
       if (v.phone) lines.push(`TEL;TYPE=VOICE:${escapeVCard(v.phone)}`);
       if (v.mobile) lines.push(`TEL;TYPE=CELL:${escapeVCard(v.mobile)}`);
       if (v.email) lines.push(`EMAIL;TYPE=INTERNET:${escapeVCard(v.email)}`);
       if (v.website) lines.push(`URL:${escapeVCard(normalizeURL(v.website))}`);
-      if (v.street || v.city || v.zip || v.country) {
-        lines.push(`ADR;TYPE=WORK:;;${escapeVCard(v.street)};${escapeVCard(v.city)};;${escapeVCard(v.zip)};${escapeVCard(v.country)}`);
-      }
+      if (v.street || v.city || v.zip || v.country) lines.push(`ADR;TYPE=WORK:;;${escapeVCard(v.street)};${escapeVCard(v.city)};;${escapeVCard(v.zip)};${escapeVCard(v.country)}`);
       lines.push('END:VCARD');
       return lines.join(CRLF);
     }
     case 'event': {
       const e = settings.eventOptions || {};
       const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+      const uidSource = [e.title, e.startTime, e.endTime, e.location, e.description].join('|');
       return [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'PRODID:-//QR Studio//QR Studio 1.1//EN',
-        'BEGIN:VEVENT',
-        `UID:${cryptoRandomID()}@qr-studio.local`,
-        `DTSTAMP:${stamp}`,
-        `DTSTART:${formatLocalDateTime(e.startTime)}`,
-        `DTEND:${formatLocalDateTime(e.endTime)}`,
+        'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//QR Studio//QR Studio 1.1//EN', 'BEGIN:VEVENT',
+        `UID:event-${stableHash(uidSource)}@qr-studio.local`, `DTSTAMP:${stamp}`,
+        `DTSTART:${formatLocalDateTime(e.startTime)}`, `DTEND:${formatLocalDateTime(e.endTime)}`,
         `SUMMARY:${escapeICalendar(e.title)}`,
         e.location ? `LOCATION:${escapeICalendar(e.location)}` : '',
         e.description ? `DESCRIPTION:${escapeICalendar(e.description)}` : '',
-        'END:VEVENT',
-        'END:VCALENDAR',
+        'END:VEVENT', 'END:VCALENDAR',
       ].filter(Boolean).join(CRLF);
     }
-    case 'location':
-      return `geo:${Number(settings.locationOptions?.latitude)},${Number(settings.locationOptions?.longitude)}`;
-    default:
-      return String(settings.textContent || '');
+    case 'location': return `geo:${Number(settings.locationOptions?.latitude)},${Number(settings.locationOptions?.longitude)}`;
+    default: return String(settings.textContent || '');
   }
 }
 
-function cryptoRandomID() {
-  const cryptoObject = globalThis.crypto;
-  if (cryptoObject?.randomUUID) return cryptoObject.randomUUID();
-  return `qr-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+function stableHash(value) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, '0');
 }

@@ -88,11 +88,11 @@ export function buildQRPayload(settings) {
     }
     case 'event': {
       const e = settings.eventOptions || {};
-      const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+      const stableDateTime = formatLocalDateTime(e.startTime) || '19700101T000000';
       const uidSource = [e.title, e.startTime, e.endTime, e.location, e.description].join('|');
       return [
         'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//QR Studio//QR Studio 1.1//EN', 'BEGIN:VEVENT',
-        `UID:event-${stableHash(uidSource)}@qr-studio.local`, `DTSTAMP:${stamp}`,
+        `UID:event-${stableHash(uidSource)}@qr-studio.local`, `DTSTAMP:${stableDateTime}`,
         `DTSTART:${formatLocalDateTime(e.startTime)}`, `DTEND:${formatLocalDateTime(e.endTime)}`,
         `SUMMARY:${escapeICalendar(e.title)}`,
         e.location ? `LOCATION:${escapeICalendar(e.location)}` : '',

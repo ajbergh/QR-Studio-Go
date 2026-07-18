@@ -21,9 +21,7 @@ const (
 
 // DesktopAPI is the only object bound to the Wails webview. It exposes
 // intent-specific operations instead of arbitrary filesystem primitives.
-type DesktopAPI struct {
-	runtime *Runtime
-}
+type DesktopAPI struct{ runtime *Runtime }
 
 type ReleaseInfo struct {
 	Version       string `json:"version"`
@@ -97,11 +95,8 @@ func (a *DesktopAPI) SaveTemplate(request TemplateSaveRequest) (*database.Templa
 		return nil, fmt.Errorf("template image exceeds the allowed size")
 	}
 	return a.runtime.templateService.SaveTemplatePreservingImages(database.Template{
-		ID:             request.ID,
-		Name:           request.Name,
-		SettingsJSON:   request.SettingsJSON,
-		LogoData:       request.LogoData,
-		BackgroundData: request.BackgroundData,
+		ID: request.ID, Name: request.Name, SettingsJSON: request.SettingsJSON,
+		LogoData: request.LogoData, BackgroundData: request.BackgroundData,
 	}, request.PreserveLogo, request.PreserveBackground)
 }
 
@@ -140,7 +135,6 @@ func (a *DesktopAPI) ImportTemplates(packageJSON string) (services.TemplateImpor
 	if len(packageJSON) == 0 || len(packageJSON) > maxPackageBytes {
 		return services.TemplateImportResult{}, fmt.Errorf("template package is empty or too large")
 	}
-
 	var envelope TemplatePackage
 	if err := json.Unmarshal([]byte(packageJSON), &envelope); err != nil {
 		return services.TemplateImportResult{}, fmt.Errorf("invalid template package: %w", err)
@@ -208,10 +202,8 @@ func (a *DesktopAPI) SaveArtifact(defaultFilename, format, dataType, label strin
 	}
 	format = strings.ToLower(strings.TrimSpace(format))
 	filters := map[string]services.FileFilter{
-		"png":  {DisplayName: "PNG Image", Pattern: "*.png"},
-		"jpeg": {DisplayName: "JPEG Image", Pattern: "*.jpg;*.jpeg"},
-		"webp": {DisplayName: "WebP Image", Pattern: "*.webp"},
-		"svg":  {DisplayName: "SVG Vector", Pattern: "*.svg"},
+		"png": {DisplayName: "PNG Image", Pattern: "*.png"}, "jpeg": {DisplayName: "JPEG Image", Pattern: "*.jpg;*.jpeg"},
+		"webp": {DisplayName: "WebP Image", Pattern: "*.webp"}, "svg": {DisplayName: "SVG Vector", Pattern: "*.svg"},
 	}
 	filter, ok := filters[format]
 	if !ok {
@@ -220,7 +212,6 @@ func (a *DesktopAPI) SaveArtifact(defaultFilename, format, dataType, label strin
 	if len(data) == 0 || len(data) > maxArtifactBytes {
 		return FileOperationResult{}, fmt.Errorf("export artifact is empty or too large")
 	}
-
 	fallback := "qr-code." + format
 	if format == "jpeg" {
 		fallback = "qr-code.jpg"
@@ -232,33 +223,23 @@ func (a *DesktopAPI) SaveArtifact(defaultFilename, format, dataType, label strin
 	if path == "" {
 		return FileOperationResult{Status: "cancelled"}, nil
 	}
-
-	expectedExt := "." + format
 	if format == "jpeg" {
 		ext := strings.ToLower(filepath.Ext(path))
 		if ext != ".jpg" && ext != ".jpeg" {
 			path += ".jpg"
 		}
-	} else if strings.ToLower(filepath.Ext(path)) != expectedExt {
-		path += expectedExt
+	} else if strings.ToLower(filepath.Ext(path)) != "."+format {
+		path += "." + format
 	}
-
 	if err := atomicWrite(path, data, 0600); err != nil {
 		return FileOperationResult{}, err
 	}
 
-	// History intentionally stores a short label and basename only. It never
-	// persists QR payloads, Wi-Fi passwords, or absolute user paths.
-	_, historyErr := a.runtime.historyService.AddHistoryEntry(database.HistoryEntry{
-		DataType:      truncate(dataType, 32),
-		DataContent:   truncate(label, 120),
-		ExportedPath: filepath.Base(path),
-		ExportFormat: format,
-	})
-	if historyErr != nil {
-		// A successful file save must not be reported as failed because optional
-		// history bookkeeping failed.
-		fmt.Printf("history write failed: %v\n", historyErr)
+	showHistory, settingsErr := a.runtime.settingsService.GetSettingBool("show_history")
+	if settingsErr == nil && showHistory {
+		if err := a.runtime.historyService.AddRedactedHistoryEntry(label, dataType, format, path); err != nil {
+			fmt.Printf("history write failed: %v\n", err)
+		}
 	}
 	return FileOperationResult{Status: "saved", Path: path}, nil
 }
@@ -289,11 +270,9 @@ func (a *DesktopAPI) ClearHistory() (int, error) {
 }
 
 var allowedSettings = map[string]bool{
-	"theme": true, "default_export_format": true, "default_qr_size": true,
-	"default_error_correction": true, "show_history": true,
-	"auto_save_templates": true, "autosave_draft": true,
-	"migration_v2_status": true, "saved_qrs": true, "logo_history": true,
-	"color_history": true, "filename_template": true, "last_format": true,
+	"theme": true, "default_export_format": true, "default_qr_size": true, "default_error_correction": true,
+	"show_history": true, "auto_save_templates": true, "autosave_draft": true, "migration_v2_status": true,
+	"saved_qrs": true, "logo_history": true, "color_history": true, "filename_template": true, "last_format": true,
 }
 
 func (a *DesktopAPI) GetSetting(key string) (string, error) {
@@ -354,7 +333,6 @@ func atomicWrite(path string, data []byte, mode os.FileMode) error {
 	}
 	tempPath := temp.Name()
 	defer os.Remove(tempPath)
-
 	if err := temp.Chmod(mode); err != nil {
 		_ = temp.Close()
 		return fmt.Errorf("failed to secure temporary export: %w", err)
@@ -387,12 +365,4 @@ func safeFilename(value, fallback string) string {
 		value = value[:180]
 	}
 	return value
-}
-
-func truncate(value string, max int) string {
-	value = strings.TrimSpace(value)
-	if len(value) <= max {
-		return value
-	}
-	return value[:max]
 }

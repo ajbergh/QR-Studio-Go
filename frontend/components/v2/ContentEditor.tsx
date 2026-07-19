@@ -56,7 +56,7 @@ export function ContentEditor({ settings, errors, onChange }: ContentEditorProps
               type={settings.dataType === 'email' ? 'email' : 'text'}
               value={settings.textContent}
               onChange={event => onChange({ textContent: event.target.value })}
-              placeholder={settings.dataType === 'url' ? 'example.com' : 'name@example.com'}
+              placeholder={settings.dataType === 'url' ? 'Enter URL, e.g. example.com' : 'name@example.com'}
             />
           )}
         </Field>

@@ -22,20 +22,35 @@ interface TemplateSummary {
   updatedAt: string;
 }
 
-interface BackendTemplate {
+interface TemplateDocument {
   id: string;
   name: string;
   settingsJson: string;
-  logoData?: number[];
-  backgroundData?: number[];
+  logoBase64?: string;
+  backgroundBase64?: string;
   createdAt?: string;
   updatedAt?: string;
+}
+
+interface BackendTemplateMetadata {
+  id: string;
+  name: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+interface BackendImportTemplate {
+  id: string;
+  name: string;
+  settingsJson: string;
+  logoData: number[];
+  backgroundData: number[];
 }
 
 interface DesktopAPI {
   GetReleaseInfo(): Promise<{ version: string; schemaVersion: number; desktop: boolean }>;
   ListTemplates(): Promise<TemplateSummary[]>;
-  GetTemplate(id: string): Promise<BackendTemplate>;
+  GetTemplateDocument(id: string): Promise<TemplateDocument>;
   SaveTemplate(request: {
     id: string;
     name: string;
@@ -44,12 +59,17 @@ interface DesktopAPI {
     backgroundData: number[];
     preserveLogo: boolean;
     preserveBackground: boolean;
-  }): Promise<BackendTemplate>;
+  }): Promise<BackendTemplateMetadata>;
   RenameTemplate(id: string, name: string): Promise<void>;
-  DuplicateTemplate(sourceId: string, newId: string, newName: string): Promise<BackendTemplate>;
+  DuplicateTemplate(sourceId: string, newId: string, newName: string): Promise<BackendTemplateMetadata>;
   DeleteTemplate(id: string): Promise<void>;
   GetTemplateCount(): Promise<number>;
-  ImportTemplates(packageJson: string): Promise<{ total: number; imported: number; skipped: number; failed: Array<{ index: number; name?: string; reason: string }> }>;
+  ImportTemplates(packageJson: string): Promise<{
+    total: number;
+    imported: number;
+    skipped: number;
+    failed: Array<{ index: number; name?: string; reason: string }>;
+  }>;
   SaveTemplatePackage(defaultFilename: string, packageJson: string): Promise<{ status: string; path?: string }>;
   OpenTemplatePackage(): Promise<string>;
   SaveArtifact(defaultFilename: string, format: string, dataType: string, label: string, data: number[]): Promise<{ status: string; path?: string }>;
@@ -110,11 +130,8 @@ export async function getSetting(key: string): Promise<string | null> {
 }
 
 export async function setSetting(key: string, value: string): Promise<void> {
-  if (isDesktopMode()) {
-    await desktopAPI().SetSetting(key, value);
-  } else {
-    localStorage.setItem(`${SETTINGS_PREFIX}${key}`, value);
-  }
+  if (isDesktopMode()) await desktopAPI().SetSetting(key, value);
+  else localStorage.setItem(`${SETTINGS_PREFIX}${key}`, value);
 }
 
 export async function getAllSettings(): Promise<Record<string, string>> {
@@ -132,7 +149,12 @@ export async function resetSettings(): Promise<void> {
     await desktopAPI().ResetSettings();
     return;
   }
-  Object.keys(localStorage).filter(key => key.startsWith(SETTINGS_PREFIX)).forEach(key => localStorage.removeItem(key));
+  const keys: string[] = [];
+  for (let index = 0; index < localStorage.length; index += 1) {
+    const key = localStorage.key(index);
+    if (key?.startsWith(SETTINGS_PREFIX)) keys.push(key);
+  }
+  keys.forEach(key => localStorage.removeItem(key));
 }
 
 export async function listDesigns(): Promise<DesignRecord[]> {
@@ -149,24 +171,34 @@ export async function listDesigns(): Promise<DesignRecord[]> {
 
 export async function loadDesign(id: string): Promise<DesignRecord | null> {
   if (!isDesktopMode()) return readBrowserDesigns().find(item => item.id === id) ?? null;
-  const template = await desktopAPI().GetTemplate(id);
+  const template = await desktopAPI().GetTemplateDocument(id);
   if (!template) return null;
   const settings = withIdentity(JSON.parse(template.settingsJson) as QRSettings, template.id, template.name);
-  if (template.logoData?.length) settings.image = bytesToDataURL(template.logoData);
-  if (template.backgroundData?.length) {
-    settings.backgroundOptions = { ...settings.backgroundOptions, image: bytesToDataURL(template.backgroundData) };
+  if (template.logoBase64) settings.image = base64ToDataURL(template.logoBase64);
+  if (template.backgroundBase64) {
+    settings.backgroundOptions = { ...settings.backgroundOptions, image: base64ToDataURL(template.backgroundBase64) };
   }
-  return { id: template.id, name: template.name, settings, createdAt: template.createdAt, updatedAt: template.updatedAt };
+  return {
+    id: template.id,
+    name: template.name,
+    settings,
+    createdAt: template.createdAt,
+    updatedAt: template.updatedAt,
+  };
 }
 
-export async function saveDesign(record: DesignRecord, preserve = { logo: false, background: false }): Promise<DesignRecord> {
+export async function saveDesign(
+  record: DesignRecord,
+  preserve = { logo: false, background: false },
+): Promise<DesignRecord> {
   const normalized = { ...record, id: cleanID(record.id), name: cleanName(record.name) };
   normalized.settings = withIdentity(normalized.settings, normalized.id, normalized.name);
 
   if (!isDesktopMode()) {
     const current = readBrowserDesigns();
     const index = current.findIndex(item => item.id === normalized.id);
-    if (index >= 0) current[index] = normalized; else current.unshift(normalized);
+    if (index >= 0) current[index] = normalized;
+    else current.unshift(normalized);
     persistBrowserDesigns(current);
     return normalized;
   }
@@ -201,7 +233,9 @@ export async function renameDesign(id: string, name: string): Promise<void> {
     await desktopAPI().RenameTemplate(id, name);
     return;
   }
-  const designs = readBrowserDesigns().map(item => item.id === id ? { ...item, name, settings: withIdentity(item.settings, id, name) } : item);
+  const designs = readBrowserDesigns().map(item => item.id === id
+    ? { ...item, name, settings: withIdentity(item.settings, id, name) }
+    : item);
   persistBrowserDesigns(designs);
 }
 
@@ -218,11 +252,8 @@ export async function duplicateDesign(source: DesignRecord): Promise<DesignRecor
 }
 
 export async function deleteDesign(id: string): Promise<void> {
-  if (isDesktopMode()) {
-    await desktopAPI().DeleteTemplate(id);
-    return;
-  }
-  persistBrowserDesigns(readBrowserDesigns().filter(item => item.id !== id));
+  if (isDesktopMode()) await desktopAPI().DeleteTemplate(id);
+  else persistBrowserDesigns(readBrowserDesigns().filter(item => item.id !== id));
 }
 
 export async function exportDesigns(records: DesignRecord[]): Promise<{ status: string; path?: string }> {
@@ -248,12 +279,15 @@ export async function importDesignPackage(raw: string): Promise<ImportReport> {
   const templates = parsed.records.map(record => toBackendTemplate(record));
   const packageJson = JSON.stringify({ formatVersion: '1', exportedAt: new Date().toISOString(), templates });
   const result = await desktopAPI().ImportTemplates(packageJson);
-  return { ...result, failed: [...parsed.errors, ...result.failed] };
+  return {
+    ...result,
+    total: parsed.records.length + parsed.errors.length,
+    failed: [...parsed.errors, ...result.failed],
+  };
 }
 
 export async function migrateLegacyBrowserDesigns(): Promise<ImportReport | null> {
-  if (!isDesktopMode()) return null;
-  if (localStorage.getItem(MIGRATION_KEY)) return null;
+  if (!isDesktopMode() || localStorage.getItem(MIGRATION_KEY)) return null;
   const raw = localStorage.getItem(TEMPLATE_KEY);
   if (!raw) {
     localStorage.setItem(MIGRATION_KEY, JSON.stringify({ completed: true, count: 0, at: new Date().toISOString() }));
@@ -261,7 +295,9 @@ export async function migrateLegacyBrowserDesigns(): Promise<ImportReport | null
   }
 
   let input: unknown;
-  try { input = JSON.parse(raw); } catch {
+  try {
+    input = JSON.parse(raw);
+  } catch {
     return { total: 0, imported: 0, skipped: 0, failed: [{ index: -1, reason: 'Legacy design storage is invalid JSON.' }] };
   }
   const normalized = normalizeDesignInput(input);
@@ -279,29 +315,42 @@ export async function migrateLegacyBrowserDesigns(): Promise<ImportReport | null
   return report;
 }
 
-export async function saveArtifact(filename: string, format: string, dataType: string, label: string, blob: Blob): Promise<{ status: string; path?: string }> {
+export async function saveArtifact(
+  filename: string,
+  format: string,
+  dataType: string,
+  label: string,
+  blob: Blob,
+): Promise<{ status: string; path?: string }> {
   if (!isDesktopMode()) {
     browserDownload(filename, blob);
     return { status: 'saved' };
   }
-  const bytes = Array.from(new Uint8Array(await blob.arrayBuffer()));
-  return desktopAPI().SaveArtifact(filename, format, dataType, label, bytes);
+  return desktopAPI().SaveArtifact(
+    filename,
+    format,
+    dataType,
+    label,
+    Array.from(new Uint8Array(await blob.arrayBuffer())),
+  );
 }
 
 export async function getHistory(limit = 100): Promise<PlatformHistoryEntry[]> {
-  if (!isDesktopMode()) return [];
-  return desktopAPI().GetHistory(limit);
+  return isDesktopMode() ? desktopAPI().GetHistory(limit) : [];
 }
 
 export async function clearHistory(): Promise<number> {
-  if (!isDesktopMode()) return 0;
-  return desktopAPI().ClearHistory();
+  return isDesktopMode() ? desktopAPI().ClearHistory() : 0;
 }
 
 function readBrowserDesigns(): DesignRecord[] {
   const raw = localStorage.getItem(TEMPLATE_KEY);
   if (!raw) return [];
-  try { return normalizeDesignInput(JSON.parse(raw)).records; } catch { return []; }
+  try {
+    return normalizeDesignInput(JSON.parse(raw)).records;
+  } catch {
+    return [];
+  }
 }
 
 function persistBrowserDesigns(records: DesignRecord[]): void {
@@ -313,10 +362,15 @@ function importBrowserDesigns(parsed: NormalizeResult): ImportReport {
   const ids = new Set(current.map(item => item.id));
   const additions = parsed.records.filter(item => !ids.has(item.id));
   persistBrowserDesigns([...additions, ...current]);
-  return { total: parsed.records.length, imported: additions.length, skipped: parsed.records.length - additions.length, failed: parsed.errors };
+  return {
+    total: parsed.records.length + parsed.errors.length,
+    imported: additions.length,
+    skipped: parsed.records.length - additions.length,
+    failed: parsed.errors,
+  };
 }
 
-function toBackendTemplate(record: DesignRecord): BackendTemplate {
+function toBackendTemplate(record: DesignRecord): BackendImportTemplate {
   const settings = structuredClone(record.settings);
   const logoData = settings.image ? dataURLToBytes(settings.image) : [];
   const backgroundData = settings.backgroundOptions.image ? dataURLToBytes(settings.backgroundOptions.image) : [];
@@ -336,13 +390,10 @@ function dataURLToBytes(dataURL: string): number[] {
   return Array.from(binary, character => character.charCodeAt(0));
 }
 
-function bytesToDataURL(bytes: number[]): string {
-  const uint8 = new Uint8Array(bytes);
-  let binary = '';
-  for (let offset = 0; offset < uint8.length; offset += 0x8000) {
-    binary += String.fromCharCode(...uint8.subarray(offset, offset + 0x8000));
-  }
-  return `data:${detectMime(uint8)};base64,${btoa(binary)}`;
+function base64ToDataURL(base64: string): string {
+  const binary = atob(base64);
+  const bytes = Uint8Array.from(binary, character => character.charCodeAt(0));
+  return `data:${detectMime(bytes)};base64,${base64}`;
 }
 
 function detectMime(bytes: Uint8Array): string {
@@ -362,7 +413,7 @@ function browserDownload(filename: string, blob: Blob): void {
   document.body.appendChild(anchor);
   anchor.click();
   anchor.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 function cleanID(value: string): string {

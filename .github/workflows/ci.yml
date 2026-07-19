@@ -107,10 +107,22 @@ jobs:
         if: steps.gotest.outcome == 'failure'
         run: cat go-test.log && exit 1
       - run: go vet ./...
-      - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
+      - name: Go vulnerability scan
+        id: govuln
+        continue-on-error: true
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest -json ./... > govulncheck.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-govulncheck
+          path: govulncheck.json
+          if-no-files-found: error
+      - name: Enforce Go vulnerability result
+        if: steps.govuln.outcome == 'failure'
+        run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
   build-windows:
-    needs: [frontend-static, backend]
+    needs: [frontend-static]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4

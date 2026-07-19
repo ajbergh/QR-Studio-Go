@@ -22,13 +22,20 @@ interface StudioPreviewProps {
 }
 
 export const StudioPreview = forwardRef<StudioPreviewHandle, StudioPreviewProps>(function StudioPreview({
-  settings, payload, errors, exportFormat, filenameTemplate, onExportFormatChange, onFilenameTemplateChange, onGallerySave, notify,
+  settings,
+  payload,
+  errors,
+  exportFormat,
+  filenameTemplate,
+  onExportFormatChange,
+  onFilenameTemplateChange,
+  onGallerySave,
+  notify,
 }, ref) {
   const mountRef = useRef<HTMLDivElement>(null);
   const qrRef = useRef<QRCodeStyling | null>(null);
   const [zoom, setZoom] = useState(72);
   const [busy, setBusy] = useState(false);
-
   const renderSettings = useMemo(() => ({ ...settings, data: payload || ' ', width: settings.width, height: settings.height }), [settings, payload]);
 
   useEffect(() => {
@@ -38,13 +45,20 @@ export const StudioPreview = forwardRef<StudioPreviewHandle, StudioPreviewProps>
       mountRef.current.innerHTML = '';
       qr.append(mountRef.current);
     }
-    return () => { if (mountRef.current) mountRef.current.innerHTML = ''; };
+    return () => {
+      if (mountRef.current) mountRef.current.innerHTML = '';
+    };
   }, []);
 
-  useEffect(() => { qrRef.current?.update(renderSettings as never); }, [renderSettings]);
+  useEffect(() => {
+    qrRef.current?.update(renderSettings as never);
+  }, [renderSettings]);
 
   const exportCurrent = async () => {
-    if (errors.length) { notify(errors[0], 'warning'); return; }
+    if (errors.length) {
+      notify(errors[0], 'warning');
+      return;
+    }
     setBusy(true);
     try {
       const blob = await renderArtifact(settings, payload, exportFormat, settings.width);
@@ -55,11 +69,16 @@ export const StudioPreview = forwardRef<StudioPreviewHandle, StudioPreviewProps>
     } catch (error) {
       console.error(error);
       notify(error instanceof Error ? error.message : 'Export failed.', 'error');
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const copyCurrent = async () => {
-    if (errors.length) { notify(errors[0], 'warning'); return; }
+    if (errors.length) {
+      notify(errors[0], 'warning');
+      return;
+    }
     try {
       const blob = await renderArtifact(settings, payload, 'png', Math.min(settings.width, 1600));
       await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
@@ -71,7 +90,10 @@ export const StudioPreview = forwardRef<StudioPreviewHandle, StudioPreviewProps>
   };
 
   const saveToGallery = async () => {
-    if (errors.length) { notify(errors[0], 'warning'); return; }
+    if (errors.length) {
+      notify(errors[0], 'warning');
+      return;
+    }
     try {
       const blob = await renderArtifact(settings, payload, 'png', 480);
       onGallerySave(await blobToDataURL(blob));
@@ -85,7 +107,10 @@ export const StudioPreview = forwardRef<StudioPreviewHandle, StudioPreviewProps>
   useImperativeHandle(ref, () => ({ exportCurrent, copyCurrent, saveToGallery }));
 
   const exportAllSizes = async () => {
-    if (errors.length) { notify(errors[0], 'warning'); return; }
+    if (errors.length) {
+      notify(errors[0], 'warning');
+      return;
+    }
     setBusy(true);
     try {
       for (const size of [256, 512, 1024, 2048]) {
@@ -97,15 +122,23 @@ export const StudioPreview = forwardRef<StudioPreviewHandle, StudioPreviewProps>
     } catch (error) {
       console.error(error);
       notify('Multi-size export did not complete.', 'error');
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   };
 
   const printCurrent = async () => {
-    if (errors.length) { notify(errors[0], 'warning'); return; }
+    if (errors.length) {
+      notify(errors[0], 'warning');
+      return;
+    }
     const blob = await renderArtifact(settings, payload, 'png', 1200);
     const dataURL = await blobToDataURL(blob);
     const popup = window.open('', '_blank', 'noopener,noreferrer');
-    if (!popup) { notify('Allow pop-ups to print the QR code.', 'warning'); return; }
+    if (!popup) {
+      notify('Allow pop-ups to print the QR code.', 'warning');
+      return;
+    }
     popup.document.write(`<!doctype html><html><head><title>QR Studio Print</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;font-family:system-ui;background:#fff}main{text-align:center;padding:24px}img{max-width:82vmin;max-height:82vmin}.label{max-width:82vmin;overflow-wrap:anywhere;color:#374151}@media print{main{padding:0}}</style></head><body><main><img alt="QR code" src="${dataURL}"><p class="label">${escapeHTML(contentLabel(settings, payload))}</p></main><script>addEventListener('load',()=>print())<\/script></body></html>`);
     popup.document.close();
   };
@@ -199,8 +232,19 @@ async function renderFramedSVG(qr: QRCodeStyling, settings: QRSettings, size: nu
 }
 
 function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-  if ('roundRect' in context) { context.beginPath(); context.roundRect(x, y, width, height, radius); return; }
-  context.beginPath(); context.moveTo(x + radius, y); context.arcTo(x + width, y, x + width, y + height, radius); context.arcTo(x + width, y + height, x, y + height, radius); context.arcTo(x, y + height, x, y, radius); context.arcTo(x, y, x + width, y, radius); context.closePath();
+  const optionalRoundRect = (context as unknown as { roundRect?: (...values: number[]) => void }).roundRect;
+  if (typeof optionalRoundRect === 'function') {
+    context.beginPath();
+    optionalRoundRect.call(context, x, y, width, height, radius);
+    return;
+  }
+  context.beginPath();
+  context.moveTo(x + radius, y);
+  context.arcTo(x + width, y, x + width, y + height, radius);
+  context.arcTo(x + width, y + height, x, y + height, radius);
+  context.arcTo(x, y + height, x, y, radius);
+  context.arcTo(x, y, x + width, y, radius);
+  context.closePath();
 }
 
 function resolveFilename(template: string, payload: string, size: number, format: string): string {
@@ -208,7 +252,24 @@ function resolveFilename(template: string, payload: string, size: number, format
   const date = new Date().toISOString().slice(0, 10);
   return template.replace(/\{label\}/gi, label).replace(/\{date\}/gi, date).replace(/\{size\}/gi, String(size)).replace(/\{format\}/gi, format).replace(/[\\/:*?"<>|\u0000-\u001f]/g, '_').replace(/\s+/g, '_').slice(0, 180) || 'qr-code';
 }
-function contentLabel(settings: QRSettings, payload: string) { return (settings.name || settings.textContent || payload || settings.dataType).slice(0, 120); }
-function escapeXML(value: string) { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;'); }
-function escapeHTML(value: string) { return escapeXML(value); }
-function blobToDataURL(blob: Blob): Promise<string> { return new Promise((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = () => reject(reader.error); reader.readAsDataURL(blob); }); }
+
+function contentLabel(settings: QRSettings, payload: string) {
+  return (settings.name || settings.textContent || payload || settings.dataType).slice(0, 120);
+}
+
+function escapeXML(value: string) {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+}
+
+function escapeHTML(value: string) {
+  return escapeXML(value);
+}
+
+function blobToDataURL(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}

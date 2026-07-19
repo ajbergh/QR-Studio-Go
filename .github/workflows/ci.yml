@@ -28,7 +28,18 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --silent
       - name: Strict TypeScript check
-        run: npm run typecheck
+        id: typecheck
+        continue-on-error: true
+        run: npm run typecheck > typecheck.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-typecheck-log
+          path: frontend/typecheck.log
+          if-no-files-found: error
+      - name: Enforce TypeScript result
+        if: steps.typecheck.outcome == 'failure'
+        run: cat typecheck.log && exit 1
       - name: Payload unit tests
         run: npm run test:unit
       - name: Production web build
@@ -70,7 +81,19 @@ jobs:
           go-version-file: go.mod
           cache: true
       - run: go mod download
-      - run: go test ./...
+      - name: Go tests
+        id: gotest
+        continue-on-error: true
+        run: go test ./... > go-test.log 2>&1
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-go-test-log
+          path: go-test.log
+          if-no-files-found: error
+      - name: Enforce Go test result
+        if: steps.gotest.outcome == 'failure'
+        run: cat go-test.log && exit 1
       - run: go vet ./...
       - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 

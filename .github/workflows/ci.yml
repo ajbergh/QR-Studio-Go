@@ -2,18 +2,18 @@ name: CI
 
 on:
   push:
-    branches: [main, "agent/**"]
+    branches: [main]
   pull_request:
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  frontend:
+  frontend-static:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -25,12 +25,41 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: frontend/package-lock.json
-      - run: npm ci
-      - run: npm test
-      - run: npm run build:web
+      - name: Install locked dependencies
+        run: npm ci --silent
+      - name: Strict TypeScript check
+        run: npm run typecheck
+      - name: Payload unit tests
+        run: npm run test:unit
+      - name: Production web build
+        run: npm run build:web
+      - name: Dependency audit
+        run: npm audit --audit-level=high
+
+  frontend-e2e:
+    needs: frontend-static
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --silent
       - run: npx playwright install --with-deps chromium
       - run: npx playwright test --project=chromium
-      - run: npm audit --audit-level=high
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-failure-evidence
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
 
   backend:
     runs-on: ubuntu-latest
@@ -46,6 +75,7 @@ jobs:
       - run: go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
   build-windows:
+    needs: [frontend-static, backend]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -60,7 +90,7 @@ jobs:
           cache: true
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: npm ci --silent
       - name: Install Wails
         run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
       - name: Build Windows application

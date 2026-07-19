@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
@@ -20,6 +20,8 @@ jobs:
         working-directory: frontend
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -27,6 +29,17 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Generate patched lockfile
         run: npm install --package-lock-only --ignore-scripts --silent
+      - name: Commit patched lockfile
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "Update patched frontend dependency lockfile"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
       - uses: actions/upload-artifact@v4
         with:
           name: patched-package-lock

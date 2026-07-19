@@ -48,12 +48,14 @@ export default function App() {
   const [history, setHistory] = useState<PlatformHistoryEntry[]>([]);
   const [gallery, setGallery] = useState<SavedQR[]>([]);
   const [notices, setNotices] = useState<Notice[]>([]);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const previewRef = useRef<StudioPreviewHandle>(null);
   const undoStack = useRef<QRSettings[]>([]);
   const redoStack = useRef<QRSettings[]>([]);
   const settingsRef = useRef(settings);
-  const undoTimer = useRef<number>();
-  const pendingSnapshot = useRef<QRSettings>();
+  const undoTimer = useRef<number | undefined>(undefined);
+  const pendingSnapshot = useRef<QRSettings | undefined>(undefined);
 
   const payload = useMemo(() => buildQRPayload(settings), [settings]);
   const contentErrors = useMemo(() => validateQRContent(settings), [settings]);
@@ -62,6 +64,11 @@ export default function App() {
     const id = Date.now() + Math.random();
     setNotices(current => [...current.slice(-3), { id, message, kind }]);
     window.setTimeout(() => setNotices(current => current.filter(notice => notice.id !== id)), 4500);
+  }, []);
+
+  const syncUndoState = useCallback(() => {
+    setCanUndo(undoStack.current.length > 0);
+    setCanRedo(redoStack.current.length > 0);
   }, []);
 
   useEffect(() => { settingsRef.current = settings; }, [settings]);
@@ -104,7 +111,7 @@ export default function App() {
   useEffect(() => {
     const root = document.documentElement;
     const media = window.matchMedia('(prefers-color-scheme: dark)');
-    const apply = () => root.dataset.theme = preferences.theme === 'system' ? (media.matches ? 'dark' : 'light') : preferences.theme;
+    const apply = () => { root.dataset.theme = preferences.theme === 'system' ? (media.matches ? 'dark' : 'light') : preferences.theme; };
     apply();
     media.addEventListener('change', apply);
     return () => media.removeEventListener('change', apply);
@@ -116,43 +123,57 @@ export default function App() {
 
   useEffect(() => {
     if (!preferences.autoSave || busy) return;
-    const timer = window.setTimeout(() => setSetting('autosave_draft', JSON.stringify(settings)).catch(error => console.error('Auto-save failed', error)), 900);
+    const timer = window.setTimeout(() => {
+      setSetting('autosave_draft', JSON.stringify(settings)).catch(error => console.error('Auto-save failed', error));
+    }, 900);
     return () => window.clearTimeout(timer);
   }, [settings, preferences.autoSave, busy]);
 
   const updateSettings = useCallback((patch: Partial<QRSettings>) => {
     if (!pendingSnapshot.current) pendingSnapshot.current = structuredClone(settingsRef.current);
-    window.clearTimeout(undoTimer.current);
+    if (undoTimer.current !== undefined) window.clearTimeout(undoTimer.current);
     undoTimer.current = window.setTimeout(() => {
       if (pendingSnapshot.current) {
         undoStack.current = [...undoStack.current.slice(-29), pendingSnapshot.current];
         redoStack.current = [];
         pendingSnapshot.current = undefined;
+        syncUndoState();
       }
     }, 500);
     setSettings(current => ({ ...current, ...patch }));
-  }, []);
+  }, [syncUndoState]);
 
   const undo = useCallback(() => {
     const previous = undoStack.current.pop();
     if (!previous) return;
     redoStack.current.push(structuredClone(settingsRef.current));
     setSettings(previous);
-  }, []);
+    syncUndoState();
+  }, [syncUndoState]);
+
   const redo = useCallback(() => {
     const next = redoStack.current.pop();
     if (!next) return;
     undoStack.current.push(structuredClone(settingsRef.current));
     setSettings(next);
-  }, []);
+    syncUndoState();
+  }, [syncUndoState]);
+
+  const clearUndoHistory = useCallback(() => {
+    undoStack.current = [];
+    redoStack.current = [];
+    pendingSnapshot.current = undefined;
+    if (undoTimer.current !== undefined) window.clearTimeout(undoTimer.current);
+    syncUndoState();
+  }, [syncUndoState]);
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
       const modifier = event.ctrlKey || event.metaKey;
       if (modifier && event.key.toLowerCase() === 'z') { event.preventDefault(); event.shiftKey ? redo() : undo(); }
       if (modifier && event.key === ',') { event.preventDefault(); setPreferencesOpen(true); }
-      if (modifier && event.key.toLowerCase() === 'e') { event.preventDefault(); previewRef.current?.exportCurrent(); }
-      if (modifier && event.shiftKey && event.key.toLowerCase() === 's') { event.preventDefault(); previewRef.current?.saveToGallery(); }
+      if (modifier && event.key.toLowerCase() === 'e') { event.preventDefault(); void previewRef.current?.exportCurrent(); }
+      if (modifier && event.shiftKey && event.key.toLowerCase() === 's') { event.preventDefault(); void previewRef.current?.saveToGallery(); }
       if (event.key === 'Escape') { setPreferencesOpen(false); setHistoryOpen(false); setGalleryOpen(false); }
     };
     window.addEventListener('keydown', handler);
@@ -165,13 +186,18 @@ export default function App() {
     setBusy(true);
     try {
       const id = activeDesignId ?? `tpl_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-      const record = await saveDesign({ id, name, settings: { ...settings, id, name } }, { logo: Boolean(activeDesignId), background: Boolean(activeDesignId) });
+      // The active design always carries its complete image data. Passing false
+      // allows an intentional logo/background removal to persist.
+      const record = await saveDesign({ id, name, settings: { ...settings, id, name } }, { logo: false, background: false });
       setActiveDesignId(record.id);
       setSettings(record.settings);
       await refreshDesigns();
       notify(`Saved “${record.name}”.`, 'success');
-    } catch (error) { notify(error instanceof Error ? error.message : 'Design save failed.', 'error'); }
-    finally { setBusy(false); }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Design save failed.', 'error');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const loadSavedDesign = async (id: string) => {
@@ -182,22 +208,56 @@ export default function App() {
       setSettings(normalizeLoadedSettings(record.settings, preferences));
       setActiveDesignId(id);
       setTab('design');
-      undoStack.current = []; redoStack.current = [];
+      clearUndoHistory();
       notify(`Loaded “${record.name}”.`, 'success');
-    } catch (error) { notify(error instanceof Error ? error.message : 'Design load failed.', 'error'); }
-    finally { setBusy(false); }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Design load failed.', 'error');
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleRename = async (id: string, name: string) => { try { await renameDesign(id, name); await refreshDesigns(); if (activeDesignId === id) setSettings(current => ({ ...current, name })); notify('Design renamed.', 'success'); } catch (error) { notify(error instanceof Error ? error.message : 'Rename failed.', 'error'); } };
-  const handleDuplicate = async (record: DesignRecord) => { try { const full = await loadDesign(record.id) ?? record; const duplicate = await duplicateDesign(full); await refreshDesigns(); notify(`Duplicated as “${duplicate.name}”.`, 'success'); } catch (error) { notify(error instanceof Error ? error.message : 'Duplicate failed.', 'error'); } };
-  const handleDelete = async (id: string) => { try { await deleteDesign(id); if (activeDesignId === id) setActiveDesignId(undefined); await refreshDesigns(); notify('Design deleted.', 'success'); } catch (error) { notify(error instanceof Error ? error.message : 'Delete failed.', 'error'); } };
+  const handleRename = async (id: string, name: string) => {
+    try {
+      await renameDesign(id, name);
+      await refreshDesigns();
+      if (activeDesignId === id) setSettings(current => ({ ...current, name }));
+      notify('Design renamed.', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Rename failed.', 'error');
+    }
+  };
+
+  const handleDuplicate = async (record: DesignRecord) => {
+    try {
+      const full = await loadDesign(record.id) ?? record;
+      const duplicate = await duplicateDesign(full);
+      await refreshDesigns();
+      notify(`Duplicated as “${duplicate.name}”.`, 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Duplicate failed.', 'error');
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteDesign(id);
+      if (activeDesignId === id) setActiveDesignId(undefined);
+      await refreshDesigns();
+      notify('Design deleted.', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Delete failed.', 'error');
+    }
+  };
 
   const handleExportDesigns = async () => {
     try {
       const full = (await Promise.all(designs.map(item => loadDesign(item.id)))).filter((item): item is DesignRecord => Boolean(item));
       const result = await exportDesigns(full);
       if (result.status === 'saved') notify(result.path ? `Saved ${result.path}` : 'Design package exported.', 'success');
-    } catch (error) { notify(error instanceof Error ? error.message : 'Design export failed.', 'error'); }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Design export failed.', 'error');
+    }
   };
 
   const handleImportText = async (raw: string) => {
@@ -207,15 +267,29 @@ export default function App() {
       await refreshDesigns();
       if (report.imported) notify(`Imported ${report.imported} design${report.imported === 1 ? '' : 's'}${report.skipped ? `; skipped ${report.skipped} duplicate${report.skipped === 1 ? '' : 's'}` : ''}.`, 'success');
       if (report.failed.length) notify(`${report.failed.length} design record${report.failed.length === 1 ? '' : 's'} could not be imported.`, 'warning');
-    } catch (error) { notify(error instanceof Error ? error.message : 'Import failed.', 'error'); }
-    finally { setBusy(false); }
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Import failed.', 'error');
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const handleNativeImport = async () => { const raw = await openDesignPackage(); if (raw) await handleImportText(raw); };
+  const handleNativeImport = async () => {
+    try {
+      const raw = await openDesignPackage();
+      if (raw) await handleImportText(raw);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Could not open the design package.', 'error');
+    }
+  };
 
   const updatePreference = async <K extends keyof UserPreferences>(key: K, value: UserPreferences[K]) => {
     setPreferences(current => ({ ...current, [key]: value }));
-    try { await setSetting(PREFERENCE_STORAGE_KEYS[key], String(value)); } catch (error) { notify(error instanceof Error ? error.message : 'Preference could not be saved.', 'error'); }
+    try {
+      await setSetting(PREFERENCE_STORAGE_KEYS[key], String(value));
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Preference could not be saved.', 'error');
+    }
   };
 
   const resetPreferences = async () => {
@@ -227,30 +301,48 @@ export default function App() {
   const resetDesign = () => {
     setSettings(createDefaultQRSettings(preferences));
     setActiveDesignId(undefined);
-    undoStack.current = []; redoStack.current = [];
+    clearUndoHistory();
     notify('Started a new design using current defaults.', 'info');
   };
 
   const addGalleryItem = async (dataURL: string) => {
-    const item: SavedQR = { id: `sqr_${Date.now()}`, label: (settings.name || settings.textContent || payload || settings.dataType).slice(0, 60), dataUrl: dataURL, dataType: settings.dataType, createdAt: new Date().toISOString() };
+    const item: SavedQR = {
+      id: `sqr_${Date.now()}`,
+      label: (settings.name || settings.textContent || payload || settings.dataType).slice(0, 60),
+      dataUrl: dataURL,
+      dataType: settings.dataType,
+      createdAt: new Date().toISOString(),
+    };
     const next = [item, ...gallery].slice(0, 20);
     setGallery(next);
     await setSetting('saved_qrs', JSON.stringify(next));
   };
 
-  const openHistory = async () => { setHistoryOpen(true); try { setHistory(await getHistory(100)); } catch (error) { notify(error instanceof Error ? error.message : 'History could not be loaded.', 'error'); } };
-  const clearExportHistory = async () => { await clearHistory(); setHistory([]); notify('Export history cleared.', 'success'); };
+  const openHistory = async () => {
+    setHistoryOpen(true);
+    try {
+      setHistory(await getHistory(100));
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'History could not be loaded.', 'error');
+    }
+  };
+
+  const clearExportHistory = async () => {
+    await clearHistory();
+    setHistory([]);
+    notify('Export history cleared.', 'success');
+  };
 
   return (
     <div className="app-shell">
       <header className="app-header">
         <div className="brand"><span className="brand-mark" aria-hidden="true">▦</span><div><strong>QR Studio</strong><small>v{APP_VERSION}{isDesktopMode() ? ' · Desktop' : ' · Web'}</small></div></div>
         <nav className="header-actions" aria-label="Application actions">
-          <button type="button" onClick={undo} disabled={!undoStack.current.length}>Undo</button>
-          <button type="button" onClick={redo} disabled={!redoStack.current.length}>Redo</button>
+          <button type="button" onClick={undo} disabled={!canUndo}>Undo</button>
+          <button type="button" onClick={redo} disabled={!canRedo}>Redo</button>
           <button type="button" onClick={resetDesign}>New</button>
           <button type="button" onClick={() => setGalleryOpen(true)}>Gallery</button>
-          {isDesktopMode() && preferences.showHistory && <button type="button" onClick={openHistory}>History</button>}
+          {isDesktopMode() && preferences.showHistory && <button type="button" onClick={() => void openHistory()}>History</button>}
           <button type="button" onClick={() => setPreferencesOpen(true)}>Preferences</button>
         </nav>
       </header>
@@ -258,21 +350,50 @@ export default function App() {
       <main className="workspace">
         <aside className="editor-panel">
           <div className="editor-tabs" role="tablist">
-            {(['content', 'design', 'library'] as EditorTab[]).map(value => <button key={value} type="button" role="tab" aria-selected={tab === value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>{value[0].toUpperCase() + value.slice(1)}</button>)}
+            {(['content', 'design', 'library'] as EditorTab[]).map(value => (
+              <button key={value} type="button" role="tab" aria-selected={tab === value} className={tab === value ? 'active' : ''} onClick={() => setTab(value)}>
+                {value[0].toUpperCase() + value.slice(1)}
+              </button>
+            ))}
           </div>
           <div className="editor-scroll">
             {tab === 'content' && <ContentEditor settings={settings} errors={contentErrors} onChange={updateSettings} />}
             {tab === 'design' && <DesignEditor settings={settings} onChange={updateSettings} />}
-            {tab === 'library' && <DesignLibrary designs={designs} activeId={activeDesignId} busy={busy} onSaveCurrent={saveCurrentDesign} onLoad={loadSavedDesign} onRename={handleRename} onDuplicate={handleDuplicate} onDelete={handleDelete} onExport={handleExportDesigns} onImportText={handleImportText} onOpenNativeImport={handleNativeImport} />}
+            {tab === 'library' && (
+              <DesignLibrary
+                designs={designs}
+                activeId={activeDesignId}
+                busy={busy}
+                onSaveCurrent={saveCurrentDesign}
+                onLoad={loadSavedDesign}
+                onRename={handleRename}
+                onDuplicate={handleDuplicate}
+                onDelete={handleDelete}
+                onExport={handleExportDesigns}
+                onImportText={handleImportText}
+                onOpenNativeImport={handleNativeImport}
+              />
+            )}
           </div>
         </aside>
 
-        <StudioPreview ref={previewRef} settings={settings} payload={payload} errors={contentErrors} exportFormat={preferences.defaultExportFormat} filenameTemplate={preferences.filenameTemplate} onExportFormatChange={value => updatePreference('defaultExportFormat', value)} onFilenameTemplateChange={value => updatePreference('filenameTemplate', value)} onGallerySave={addGalleryItem} notify={notify} />
+        <StudioPreview
+          ref={previewRef}
+          settings={settings}
+          payload={payload}
+          errors={contentErrors}
+          exportFormat={preferences.defaultExportFormat}
+          filenameTemplate={preferences.filenameTemplate}
+          onExportFormatChange={value => void updatePreference('defaultExportFormat', value)}
+          onFilenameTemplateChange={value => void updatePreference('filenameTemplate', value)}
+          onGallerySave={dataURL => void addGalleryItem(dataURL)}
+          notify={notify}
+        />
       </main>
 
-      <PreferencesDialog open={preferencesOpen} preferences={preferences} onClose={() => setPreferencesOpen(false)} onChange={updatePreference} onReset={resetPreferences} />
+      <PreferencesDialog open={preferencesOpen} preferences={preferences} onClose={() => setPreferencesOpen(false)} onChange={updatePreference} onReset={() => void resetPreferences()} />
       {galleryOpen && <GalleryDrawer items={gallery} onClose={() => setGalleryOpen(false)} onDelete={async id => { const next = gallery.filter(item => item.id !== id); setGallery(next); await setSetting('saved_qrs', JSON.stringify(next)); }} />}
-      {historyOpen && <HistoryDrawer entries={history} onClose={() => setHistoryOpen(false)} onClear={clearExportHistory} />}
+      {historyOpen && <HistoryDrawer entries={history} onClose={() => setHistoryOpen(false)} onClear={() => void clearExportHistory()} />}
       <div className="toast-stack" aria-live="polite">{notices.map(notice => <div key={notice.id} className={`toast ${notice.kind}`}>{notice.message}</div>)}</div>
       {busy && <div className="busy-indicator" role="status">Working…</div>}
     </div>
@@ -282,10 +403,14 @@ export default function App() {
 function GalleryDrawer({ items, onClose, onDelete }: { items: SavedQR[]; onClose: () => void; onDelete: (id: string) => void }) {
   return <Drawer title="Gallery" onClose={onClose}>{items.length === 0 ? <div className="empty-state">No saved QR snapshots.</div> : <div className="gallery-grid">{items.map(item => <article key={item.id} className="gallery-card"><img src={item.dataUrl} alt={`QR code for ${item.label}`} /><strong>{item.label}</strong><small>{new Date(item.createdAt).toLocaleString()}</small><button className="danger-link" type="button" onClick={() => onDelete(item.id)}>Delete</button></article>)}</div>}</Drawer>;
 }
+
 function HistoryDrawer({ entries, onClose, onClear }: { entries: PlatformHistoryEntry[]; onClose: () => void; onClear: () => void }) {
   return <Drawer title="Redacted export history" onClose={onClose} footer={<button className="ghost-button" type="button" disabled={!entries.length} onClick={onClear}>Clear history</button>}>{entries.length === 0 ? <div className="empty-state">No desktop exports recorded.</div> : <div className="history-list">{entries.map(entry => <article key={entry.id}><div><strong>{entry.label || entry.dataType}</strong><small>{entry.filename} · {entry.exportFormat.toUpperCase()}</small></div><time>{new Date(entry.createdAt).toLocaleString()}</time></article>)}</div>}</Drawer>;
 }
-function Drawer({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) { return <div className="drawer-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><aside className="drawer" role="dialog" aria-modal="true" aria-label={title}><div className="drawer-header"><h2>{title}</h2><button className="icon-button" type="button" onClick={onClose}>×</button></div><div className="drawer-body">{children}</div>{footer && <div className="drawer-footer">{footer}</div>}</aside></div>; }
+
+function Drawer({ title, onClose, children, footer }: { title: string; onClose: () => void; children: React.ReactNode; footer?: React.ReactNode }) {
+  return <div className="drawer-backdrop" onMouseDown={event => { if (event.target === event.currentTarget) onClose(); }}><aside className="drawer" role="dialog" aria-modal="true" aria-label={title}><div className="drawer-header"><h2>{title}</h2><button className="icon-button" type="button" onClick={onClose}>×</button></div><div className="drawer-body">{children}</div>{footer && <div className="drawer-footer">{footer}</div>}</aside></div>;
+}
 
 function parsePreferences(values: Record<string, string>): UserPreferences {
   return {
@@ -298,6 +423,26 @@ function parsePreferences(values: Record<string, string>): UserPreferences {
     filenameTemplate: values.filename_template || DEFAULT_PREFERENCES.filenameTemplate,
   };
 }
-function normalizeLoadedSettings(value: QRSettings, preferences: UserPreferences): QRSettings { const fallback = createDefaultQRSettings(preferences); return { ...fallback, ...value, qrOptions: { ...fallback.qrOptions, ...value.qrOptions }, imageOptions: { ...fallback.imageOptions, ...value.imageOptions }, dotsOptions: { ...fallback.dotsOptions, ...value.dotsOptions }, backgroundOptions: { ...fallback.backgroundOptions, ...value.backgroundOptions }, cornersSquareOptions: { ...fallback.cornersSquareOptions, ...value.cornersSquareOptions }, cornersDotOptions: { ...fallback.cornersDotOptions, ...value.cornersDotOptions }, frameOptions: { ...fallback.frameOptions, ...value.frameOptions } }; }
-function safeParse<T>(value: string): T | null { try { return JSON.parse(value) as T; } catch { return null; } }
-function clampNumber(value: number, min: number, max: number, fallback: number) { return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback; }
+
+function normalizeLoadedSettings(value: QRSettings, preferences: UserPreferences): QRSettings {
+  const fallback = createDefaultQRSettings(preferences);
+  return {
+    ...fallback,
+    ...value,
+    qrOptions: { ...fallback.qrOptions, ...value.qrOptions },
+    imageOptions: { ...fallback.imageOptions, ...value.imageOptions },
+    dotsOptions: { ...fallback.dotsOptions, ...value.dotsOptions },
+    backgroundOptions: { ...fallback.backgroundOptions, ...value.backgroundOptions },
+    cornersSquareOptions: { ...fallback.cornersSquareOptions, ...value.cornersSquareOptions },
+    cornersDotOptions: { ...fallback.cornersDotOptions, ...value.cornersDotOptions },
+    frameOptions: { ...fallback.frameOptions, ...value.frameOptions },
+  };
+}
+
+function safeParse<T>(value: string): T | null {
+  try { return JSON.parse(value) as T; } catch { return null; }
+}
+
+function clampNumber(value: number, min: number, max: number, fallback: number) {
+  return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback;
+}

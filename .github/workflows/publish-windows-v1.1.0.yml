@@ -1,0 +1,129 @@
+name: Publish Windows Release v1.1.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/release-triggers/v1.1.0
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-windows-v1.1.0
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: v1.1.0
+  RELEASE_COMMIT: e80e17bf013279df44d9d15cf9e34d1e0f959cbe
+  RELEASE_TITLE: QR Studio 1.1.0
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+    steps:
+      - name: Check out validated release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_COMMIT }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --silent
+
+      - name: Verify Go modules
+        run: |
+          go mod download
+          go mod verify
+
+      - name: Install Wails
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+
+      - name: Build Windows amd64 executable
+        run: wails build -clean -platform windows/amd64
+
+      - name: Stage executable and checksum
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          New-Item -ItemType Directory -Force -Path release | Out-Null
+          $destination = 'release/QRStudio_windows_amd64.exe'
+          Copy-Item 'build/bin/QRStudio.exe' $destination -Force
+          $hash = (Get-FileHash $destination -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  QRStudio_windows_amd64.exe" | Set-Content 'release/QRStudio_windows_amd64.exe.sha256' -Encoding ascii
+
+      - name: Create or update GitHub release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $notes = @'
+          QR Studio 1.1.0 is the stabilization, security, and release-hardening update.
+
+          Highlights:
+          - hardened, intent-specific Wails desktop API;
+          - standards-aware QR payload generation;
+          - unified PNG, JPEG, WebP, SVG, framed, clipboard, print, gallery, and multi-size exports;
+          - image-preserving saved-design operations and verified browser-to-SQLite migration;
+          - privacy-safe optional export history;
+          - strict frontend, backend, security, Playwright, and native Windows build validation.
+
+          The attached Windows executable targets 64-bit Intel/AMD Windows systems. It is currently unsigned, so Windows SmartScreen may display a warning. Verify the download with the attached SHA-256 checksum before running it.
+          '@
+          $notes | Set-Content 'release-notes.md' -Encoding utf8
+
+          $releaseExists = $false
+          gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY *> $null
+          if ($LASTEXITCODE -eq 0) {
+            $releaseExists = $true
+          }
+
+          if ($releaseExists) {
+            gh release edit $env:RELEASE_TAG `
+              --repo $env:GITHUB_REPOSITORY `
+              --title $env:RELEASE_TITLE `
+              --notes-file release-notes.md
+            gh release upload $env:RELEASE_TAG `
+              release/QRStudio_windows_amd64.exe `
+              release/QRStudio_windows_amd64.exe.sha256 `
+              --repo $env:GITHUB_REPOSITORY `
+              --clobber
+          } else {
+            gh release create $env:RELEASE_TAG `
+              release/QRStudio_windows_amd64.exe `
+              release/QRStudio_windows_amd64.exe.sha256 `
+              --repo $env:GITHUB_REPOSITORY `
+              --target $env:RELEASE_COMMIT `
+              --title $env:RELEASE_TITLE `
+              --notes-file release-notes.md
+          }
+
+      - name: Verify published release assets
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $assets = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json assets,url | ConvertFrom-Json
+          $names = @($assets.assets | ForEach-Object { $_.name })
+          foreach ($required in @('QRStudio_windows_amd64.exe', 'QRStudio_windows_amd64.exe.sha256')) {
+            if ($required -notin $names) {
+              throw "Release asset was not published: $required"
+            }
+          }
+          Write-Host "Release published: $($assets.url)"

@@ -1,0 +1,35 @@
+{
+  "assets": [
+    {
+      "apiUrl": "https://api.github.com/repos/ajbergh/QR-Studio-Go/releases/assets/484576594",
+      "contentType": "application/x-msdownload",
+      "createdAt": "2026-07-21T11:02:25Z",
+      "digest": "sha256:e00bc668eff61f9032be2d1dc4e76ab66112fbb9c63c1cbb7222f4f6fa603fde",
+      "downloadCount": 0,
+      "id": "RA_kwDOQp-e6s4c4g1S",
+      "label": "",
+      "name": "QRStudio_windows_amd64.exe",
+      "size": 14600704,
+      "state": "uploaded",
+      "updatedAt": "2026-07-21T11:02:26Z",
+      "url": "https://github.com/ajbergh/QR-Studio-Go/releases/download/v1.1.0/QRStudio_windows_amd64.exe"
+    },
+    {
+      "apiUrl": "https://api.github.com/repos/ajbergh/QR-Studio-Go/releases/assets/484576593",
+      "contentType": "application/octet-stream",
+      "createdAt": "2026-07-21T11:02:25Z",
+      "digest": "sha256:a33a7439a101f232111011035f076bd0f95e7df7373011f8a676ef6dfc432e11",
+      "downloadCount": 0,
+      "id": "RA_kwDOQp-e6s4c4g1R",
+      "label": "",
+      "name": "QRStudio_windows_amd64.exe.sha256",
+      "size": 94,
+      "state": "uploaded",
+      "updatedAt": "2026-07-21T11:02:25Z",
+      "url": "https://github.com/ajbergh/QR-Studio-Go/releases/download/v1.1.0/QRStudio_windows_amd64.exe.sha256"
+    }
+  ],
+  "publishedAt": "2026-07-21T11:02:27Z",
+  "tagName": "v1.1.0",
+  "url": "https://github.com/ajbergh/QR-Studio-Go/releases/tag/v1.1.0"
+}

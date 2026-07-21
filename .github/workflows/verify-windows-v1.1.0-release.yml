@@ -1,0 +1,80 @@
+name: Verify Windows Release v1.1.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/release-triggers/v1.1.0-verify
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: verify-windows-v1.1.0-release
+  cancel-in-progress: false
+
+env:
+  RELEASE_TAG: v1.1.0
+
+jobs:
+  verify-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for release assets and verify them
+        id: verify
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          release_json=''
+          for attempt in $(seq 1 60); do
+            if release_json=$(gh release view "$RELEASE_TAG" \
+              --repo "$GITHUB_REPOSITORY" \
+              --json tagName,url,publishedAt,assets 2>/dev/null); then
+              names=$(printf '%s' "$release_json" | jq -r '.assets[].name')
+              if grep -Fxq 'QRStudio_windows_amd64.exe' <<<"$names" && \
+                 grep -Fxq 'QRStudio_windows_amd64.exe.sha256' <<<"$names"; then
+                break
+              fi
+            fi
+            release_json=''
+            sleep 20
+          done
+
+          if [[ -z "$release_json" ]]; then
+            echo 'The v1.1.0 release or required assets were not published.' >&2
+            exit 1
+          fi
+
+          printf '%s\n' "$release_json" | jq . > release-status.json
+          release_url=$(printf '%s' "$release_json" | jq -r '.url')
+          echo "release_url=$release_url" >> "$GITHUB_OUTPUT"
+
+      - name: Record verified release status on main
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          path='.github/release-status/v1.1.0.json'
+          content=$(base64 -w0 release-status.json)
+          existing_sha=$(gh api \
+            -H 'Accept: application/vnd.github+json' \
+            "/repos/$GITHUB_REPOSITORY/contents/$path?ref=main" \
+            --jq '.sha' 2>/dev/null || true)
+
+          args=(
+            --method PUT
+            -H 'Accept: application/vnd.github+json'
+            "/repos/$GITHUB_REPOSITORY/contents/$path"
+            -f message='Record verified QR Studio v1.1.0 release assets'
+            -f content="$content"
+            -f branch='main'
+          )
+          if [[ -n "$existing_sha" ]]; then
+            args+=( -f sha="$existing_sha" )
+          fi
+          gh api "${args[@]}" >/dev/null
+
+      - name: Publish verified URL
+        run: echo "Verified release ${{ steps.verify.outputs.release_url }}"

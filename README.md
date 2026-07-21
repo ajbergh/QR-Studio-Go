@@ -31,14 +31,19 @@ mode.
 ### Web development
 
 - Node.js 22+
-- npm
+- npm with the committed `frontend/package-lock.json`
 
 ### Desktop development
 
-- Go version declared in `go.mod`
+- Go 1.25.12, as declared in `go.mod`
 - Node.js 22+
 - Wails CLI v2.11
 - Native platform dependencies required by Wails
+
+### Release scripts
+
+- PowerShell 7+ (`pwsh`) on Windows, macOS, or Linux
+- The platform toolchain required by the selected Wails target
 
 Install Wails:
 
@@ -68,41 +73,51 @@ interfaces.
 
 ## Validation
 
+Run the same core checks enforced by CI:
+
 ```powershell
 cd frontend
+npm ci
 npm test
 npm run build:web
 npm run test:e2e -- --project=chromium
+npm audit --audit-level=high
 cd ..
+go mod download
+go mod verify
 go test ./...
 go vet ./...
+go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 ```
 
 The test suite covers payload escaping and validation, real PNG output, design
 persistence, invalid-content blocking, template image preservation, duplicate
-handling, and transactional import reporting. CI also performs dependency audits,
-Go vulnerability checks, and a Windows Wails build.
+handling, and transactional import reporting. CI also performs a native Windows
+Wails production build and uploads the resulting executable as a workflow
+artifact.
 
 ## Production builds
 
+Run these commands from the repository root with PowerShell 7:
+
 ```powershell
 # Web static build
-.\scripts\build-web.ps1 -Clean
+./scripts/build-web.ps1 -Clean
 
 # Windows
-.\scripts\build-wails-windows.ps1 -Architecture amd64 -Clean
-.\scripts\build-wails-windows.ps1 -Architecture all -Clean
+./scripts/build-wails-windows.ps1 -Architecture amd64 -Clean
+./scripts/build-wails-windows.ps1 -Architecture all -Clean
 
 # macOS — run on macOS
-.\scripts\build-wails-macos.ps1 -Architecture universal -Clean
+./scripts/build-wails-macos.ps1 -Architecture universal -Clean
 
 # Linux — run on Linux
-.\scripts\build-wails-linux.ps1 -Architecture amd64 -Clean
+./scripts/build-wails-linux.ps1 -Architecture amd64 -Clean
 ```
 
 Build scripts use `npm ci`, `go mod download`, and `go mod verify`; they do not
-rewrite dependency metadata. Multi-architecture outputs are staged separately
-and accompanied by SHA-256 checksums.
+rewrite dependency metadata. Multi-architecture outputs are staged under
+`output/<platform>/` and accompanied by SHA-256 checksum files.
 
 ## Architecture
 
@@ -149,7 +164,11 @@ Export a design package before clearing browser or application data.
 
 ## Release status
 
-The `1.1.0` line is the stabilization and security-hardening release. It replaces
+Version `1.1.0` is the stabilization and security-hardening release. It replaces
 the original broad Wails binding, unifies export behavior, fixes image-preserving
 design operations, repairs browser-to-desktop migration, makes preferences
 functional, and adds reproducible validation and packaging.
+
+See the [changelog](CHANGELOG.md) and the
+[phase-by-phase remediation ledger](docs/REMEDIATION_STATUS.md) for detailed
+release and implementation notes.

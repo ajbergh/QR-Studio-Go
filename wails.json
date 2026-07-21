@@ -3,19 +3,19 @@
   "name": "qr-studio",
   "outputfilename": "QRStudio",
   "frontend:dir": "./frontend",
-  "frontend:install": "npm install",
+  "frontend:install": "npm ci",
   "frontend:build": "npm run build:wails",
   "frontend:dev:watcher": "npm run dev",
   "frontend:dev:serverUrl": "auto",
   "wailsjsdir": "./frontend/wailsjs",
   "author": {
-    "name": "QR Studio Team",
+    "name": "QR Studio",
     "email": "contact@qr-studio.app"
   },
   "info": {
     "productName": "QR Studio",
-    "productVersion": "1.0.0",
-    "copyright": "Copyright © 2025 QR Studio Team",
+    "productVersion": "1.1.0",
+    "copyright": "Copyright © 2026 QR Studio",
     "comments": "Professional QR Code Generator",
     "companyName": "QR Studio",
     "fileDescription": "QR Studio - Professional QR Code Generator"

@@ -1,7 +1,8 @@
 # QR Studio Full Remediation Status
 
-Branch: `agent/full-remediation`  
-Target release: `1.1.0`
+Target release: `1.1.0`  
+Implementation branch: `agent/full-remediation`  
+Final documentation review: July 21, 2026
 
 ## Phase 0 — Release blockers
 
@@ -37,21 +38,24 @@ Target release: `1.1.0`
 | Reproducible packaging | Complete | `npm ci`, module verification, isolated multi-architecture staging, SHA-256 checksums |
 | Accessibility improvements | Complete | Semantic tabs/dialogs, labels, keyboard workflows, visible focus, reduced-motion support |
 | Scannability guardrails | Complete | Contrast, quiet-zone, logo-size, error-correction, and background-image warnings plus decode validation |
-| Repair documentation and licensing | Complete | README, contribution guide, security policy, MIT license, and this phase ledger |
+| Repair documentation and licensing | Complete | README, changelog, contribution guide, security policy, MIT license, and this phase ledger |
 
-## Validation gates
+## Final validation
 
-The branch must pass all jobs in `.github/workflows/ci.yml` before merge:
+All merge gates completed successfully before the final documentation pass:
 
 - frontend strict TypeScript check;
 - payload unit tests;
 - production web build;
-- Chromium Playwright workflows;
+- Chromium Playwright workflows, including QR decode and exported-artifact checks;
 - high-severity npm dependency audit;
+- Go module verification;
 - Go tests and `go vet`;
-- Go vulnerability scan;
-- Windows Wails production build.
+- Go vulnerability scan with Go 1.25.12 and `golang.org/x/sys` 0.44.0;
+- Windows Wails production build and executable artifact upload.
 
-Native macOS signing/notarization and Windows code signing require project-owned
-certificates and release secrets. The build scripts produce unsigned staged
-artifacts and checksums without embedding credentials in the repository.
+The documentation-only final pass must repeat the repository CI checks before
+merge. Native macOS signing/notarization and Windows code signing require
+project-owned certificates and release secrets. The build scripts produce
+unsigned staged artifacts and checksums without embedding credentials in the
+repository.

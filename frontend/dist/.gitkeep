@@ -1,0 +1,2 @@
+QR Studio production assets are generated here by Vite during web and Wails builds.
+This placeholder allows Go packages containing //go:embed all:frontend/dist to compile in backend-only test jobs.

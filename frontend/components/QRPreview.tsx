@@ -378,12 +378,18 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
             )
           : null;
         if (!blob) return;
-        const imgUrl = URL.createObjectURL(blob as Blob);
         const label = escHtml(
           (settings.textContent?.trim() || settings.data || "").slice(0, 120),
         );
         const win = window.open("", "_blank");
-        if (!win) return;
+        if (!win) {
+          notify(
+            "Print failed — pop-ups may be blocked by your browser.",
+            "warning",
+          );
+          return;
+        }
+        const imgUrl = URL.createObjectURL(blob as Blob);
 
         let styles = "";
         let body = "";
@@ -503,7 +509,31 @@ export const QRPreview = forwardRef<QRPreviewHandle, QRPreviewProps>(
       } else {
         // Unframed raster/vector export
         if (downloadFormat === "svg") {
-          await qrCode.current.download({ name, extension: "svg" });
+          const bgImage = settings.backgroundOptions?.image;
+          if (!bgImage) {
+            await qrCode.current.download({ name, extension: "svg" });
+          } else {
+            // qr-code-styling cannot embed background images — inject one
+            // as the bottom layer of the exported SVG ourselves.
+            const rawSvg = await qrCode.current.getRawData("svg");
+            if (rawSvg) {
+              const svgText = await (rawSvg as Blob).text();
+              const size = settings.width;
+              const bgTag = `<image href="${bgImage}" x="0" y="0" width="${size}" height="${size}" preserveAspectRatio="xMidYMid slice" />`;
+              const injected = svgText.replace(/(<svg[^>]*>)/i, `$1${bgTag}`);
+              const svgBlob = new Blob([injected], {
+                type: "image/svg+xml",
+              });
+              const url = URL.createObjectURL(svgBlob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `${name}.svg`;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            }
+          }
         } else {
           const raw = await qrCode.current.getRawData(downloadFormat);
           const blob = raw
@@ -707,12 +737,14 @@ ${brackets}
           settings.backgroundOptions.image,
         );
 
+        const qrImageUrl = URL.createObjectURL(qrBlob as Blob);
         const qrImage = new Image();
-        qrImage.src = URL.createObjectURL(qrBlob as Blob);
+        qrImage.src = qrImageUrl;
 
-        await new Promise((resolve) => {
-          qrImage.onload = resolve;
-        });
+        await new Promise<void>((resolve, reject) => {
+          qrImage.onload = () => resolve();
+          qrImage.onerror = () => reject(new Error("Failed to load QR image"));
+        }).finally(() => URL.revokeObjectURL(qrImageUrl));
 
         const canvas = document.createElement("canvas");
         const ctx = canvas.getContext("2d");
@@ -1048,16 +1080,14 @@ ${brackets}
       }
     };
 
-    // Expose imperative handle to parent (used by Ctrl+Shift+S keyboard shortcut)
-    useImperativeHandle(
-      ref,
-      () => ({
-        handleCopy,
-        handleDownload,
-        handleSave: handleSaveQR,
-      }),
-      [toast, onSaveQR],
-    );
+    // Expose imperative handle to parent (used by Ctrl+Shift+S keyboard shortcut).
+    // No dependency array: handlers close over the latest settings, so the ref
+    // must be refreshed on every render to avoid stale-closure bugs.
+    useImperativeHandle(ref, () => ({
+      handleCopy,
+      handleDownload,
+      handleSave: handleSaveQR,
+    }));
 
     const previewStyles = getPreviewStyles();
     const previewBaseSize = isCompactLayout ? 272 : 320;

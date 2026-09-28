@@ -29,3 +29,5 @@ frontend/playwright-report/*
 frontend/test-results/*
 build/bin/*
 output/*
+build/bin/QRStudio.exe
+build/

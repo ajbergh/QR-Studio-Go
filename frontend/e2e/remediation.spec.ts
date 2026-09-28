@@ -37,6 +37,27 @@ test.describe('remediated QR Studio workflows', () => {
     expect(Array.from(bytes.subarray(0, 8))).toEqual([137, 80, 78, 71, 13, 10, 26, 10]);
   });
 
+  test('renders an uploaded logo without blanking the QR code', async ({ page }) => {
+    await page.getByRole('tab', { name: 'Design' }).click();
+    await page.locator('input[type="file"][accept*="image/svg+xml"]').first().setInputFiles({
+      name: 'logo.svg',
+      mimeType: 'image/svg+xml',
+      buffer: Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" width="40" height="40"><rect width="40" height="40" fill="red"/></svg>'),
+    });
+
+    await expect.poll(() => page.locator('[data-testid="qr-preview"] canvas').evaluate(canvas => {
+      const image = (canvas as HTMLCanvasElement).getContext('2d')!.getImageData(0, 0, canvas.width, canvas.height);
+      let red = 0;
+      let dark = 0;
+      for (let i = 0; i < image.data.length; i += 4) {
+        const [r, g, b, a] = image.data.slice(i, i + 4);
+        if (r > 200 && g < 80 && b < 80 && a > 200) red++;
+        if (r < 100 && g < 100 && b < 100 && a > 200) dark++;
+      }
+      return red > 100 && dark > 100;
+    })).toBe(true);
+  });
+
   test('persists a saved design across reload', async ({ page }) => {
     await page.getByRole('tab', { name: 'Library' }).click();
     await page.getByLabel('Design name').fill('Persistence Test');

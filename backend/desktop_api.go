@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	applicationVersion = "1.1.0"
+	applicationVersion = "1.1.1"
 	maxArtifactBytes    = 64 * 1024 * 1024
 	maxPackageBytes     = 32 * 1024 * 1024
 )

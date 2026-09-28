@@ -2,6 +2,14 @@
 
 All notable changes to QR Studio are documented in this file.
 
+## 1.1.1 — 2026-09-28
+
+### Fixed
+
+- Restored logo rendering in QR previews by allowing the renderer to read uploaded image data under the Content Security Policy.
+- Improved QR export handling for custom background images.
+- Updated locked frontend dependencies to resolve reported security advisories.
+
 ## 1.1.0 — 2026-07-21
 
 ### Security

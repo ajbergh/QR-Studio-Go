@@ -35,7 +35,7 @@ Updated: 2025-12-16
  * Current application version.
  * Must match package.json and wails.json versions.
  */
-export const APP_VERSION = '1.0.0';
+export const APP_VERSION = '1.1.1';
 
 /**
  * Minimum supported template version.

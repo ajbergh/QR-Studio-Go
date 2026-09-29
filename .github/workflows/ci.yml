@@ -141,3 +141,65 @@ jobs:
           name: qr-studio-windows-amd64
           path: build/bin/QRStudio.exe
           if-no-files-found: error
+
+  build-linux:
+    needs: [frontend-static, backend]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install native dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+      - name: Install Wails
+        run: |
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+      - name: Build Linux application
+        shell: pwsh
+        run: ./scripts/build-wails-linux.ps1 -Architecture amd64 -Clean
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qr-studio-linux-amd64
+          path: |
+            output/linux/QRStudio_linux_amd64.tar.gz
+            output/linux/QRStudio_linux_amd64.tar.gz.sha256
+          if-no-files-found: error
+
+  build-macos:
+    needs: [frontend-static, backend]
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Wails
+        run: |
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+      - name: Build universal macOS application
+        shell: pwsh
+        run: ./scripts/build-wails-macos.ps1 -Architecture universal -Clean
+      - uses: actions/upload-artifact@v4
+        with:
+          name: qr-studio-macos-universal
+          path: |
+            output/macos/QRStudio_macos_universal.zip
+            output/macos/QRStudio_macos_universal.zip.sha256
+          if-no-files-found: error

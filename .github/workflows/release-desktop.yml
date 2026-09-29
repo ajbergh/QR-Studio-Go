@@ -1,0 +1,213 @@
+name: Release desktop apps
+
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to build and publish
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ inputs.tag || github.ref_name }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref_name }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Check tag and application versions
+        id: version
+        env:
+          TAG: ${{ inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          git rev-parse --verify "refs/tags/$TAG^{commit}" >/dev/null
+          version="${TAG#v}"
+          test "$(node -p "require('./frontend/package.json').version")" = "$version"
+          test "$(node -p "require('./wails.json').info.productVersion")" = "$version"
+          grep -Fq "applicationVersion = \"$version\"" backend/desktop_api.go
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+  linux:
+    needs: validate
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install GTK and WebKitGTK 4.1 headers
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev pkg-config
+          pkg-config --exists gtk+-3.0 gio-unix-2.0 webkit2gtk-4.1
+      - name: Install Wails
+        run: |
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+      - name: Build Linux amd64 release
+        shell: pwsh
+        run: ./scripts/build-wails-linux.ps1 -Architecture amd64 -Clean
+      - name: Check executable and archive
+        run: |
+          set -euo pipefail
+          file build/bin/QRStudio
+          test -x build/bin/QRStudio
+          ldd build/bin/QRStudio | tee output/linux/dependencies.txt
+          ! grep -q 'not found' output/linux/dependencies.txt
+          tar -tzf output/linux/QRStudio_linux_amd64.tar.gz | grep -Fxq QRStudio
+          (cd output/linux && sha256sum -c QRStudio_linux_amd64.tar.gz.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-linux
+          path: |
+            output/linux/QRStudio_linux_amd64.tar.gz
+            output/linux/QRStudio_linux_amd64.tar.gz.sha256
+          if-no-files-found: error
+
+  macos:
+    needs: validate
+    runs-on: macos-15-intel
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Wails
+        run: |
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+          go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+      - name: Build universal macOS release
+        shell: pwsh
+        run: ./scripts/build-wails-macos.ps1 -Architecture universal -Clean
+      - name: Check app bundle and archive
+        run: |
+          set -euo pipefail
+          binary=build/bin/QRStudio.app/Contents/MacOS/QRStudio
+          file "$binary"
+          lipo -archs "$binary" | grep -q x86_64
+          lipo -archs "$binary" | grep -q arm64
+          unzip -tq output/macos/QRStudio_macos_universal.zip
+          (cd output/macos && shasum -a 256 -c QRStudio_macos_universal.zip.sha256)
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-macos
+          path: |
+            output/macos/QRStudio_macos_universal.zip
+            output/macos/QRStudio_macos_universal.zip.sha256
+          if-no-files-found: error
+
+  windows:
+    needs: validate
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install Wails
+        shell: pwsh
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@v2.11.0
+      - name: Build Windows amd64 release
+        shell: pwsh
+        run: ./scripts/build-wails-windows.ps1 -Architecture amd64 -Clean
+      - name: Check executable and checksum
+        shell: pwsh
+        run: |
+          $path = 'output/windows/QRStudio_windows_amd64.exe'
+          if (-not (Test-Path $path)) { throw 'Windows executable is missing.' }
+          $expected = (Get-Content "$path.sha256").Split(' ', [StringSplitOptions]::RemoveEmptyEntries)[0]
+          $actual = (Get-FileHash $path -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($expected -ne $actual) { throw 'Windows checksum mismatch.' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-windows
+          path: |
+            output/windows/QRStudio_windows_amd64.exe
+            output/windows/QRStudio_windows_amd64.exe.sha256
+          if-no-files-found: error
+
+  publish:
+    needs: [validate, linux, macos, windows]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.validate.outputs.tag }}
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-*
+          path: release
+          merge-multiple: true
+      - name: Verify all release assets
+        run: |
+          set -euo pipefail
+          cd release
+          for asset in QRStudio_linux_amd64.tar.gz QRStudio_macos_universal.zip QRStudio_windows_amd64.exe; do
+            test -s "$asset"
+            test -s "$asset.sha256"
+            sha256sum -c "$asset.sha256"
+          done
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 6
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.validate.outputs.tag }}
+        run: |
+          set -euo pipefail
+          cat > release-notes.md <<'NOTES'
+          Native builds for Windows amd64, macOS Intel/Apple Silicon, and Linux amd64.
+
+          The macOS app is unsigned and not notarized. On Linux, install GTK 3 and WebKit2GTK 4.1 runtime libraries. Verify downloads with the attached SHA-256 files.
+
+          See CHANGELOG.md for version changes.
+          NOTES
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" release/* --clobber
+            gh release edit "$TAG" --title "QR Studio ${TAG#v}" --notes-file release-notes.md
+          else
+            gh release create "$TAG" release/* --verify-tag --title "QR Studio ${TAG#v}" --notes-file release-notes.md
+          fi
+          gh release view "$TAG" --json assets --jq '.assets[].name' | sort > published-assets.txt
+          find release -maxdepth 1 -type f -printf '%f\n' | sort > expected-assets.txt
+          diff -u expected-assets.txt published-assets.txt

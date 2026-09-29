@@ -201,7 +201,7 @@ func (a *App) Shutdown(ctx context.Context) {
 // Returns:
 //   - string: Application version in semver format
 func (a *App) GetVersion() string {
-	return "1.0.0"
+	return "1.1.2"
 }
 
 // IsDesktopMode returns true to indicate we're running in Wails desktop mode.

@@ -132,12 +132,12 @@ func getDatabasePath() (string, error) {
 		}
 		appDataDir = filepath.Join(homeDir, "Library", "Application Support")
 	default:
-		// Linux and others: Use ~/.config
-		homeDir, err := os.UserHomeDir()
+		// Linux and others: honor XDG_CONFIG_HOME when it is set.
+		configDir, err := os.UserConfigDir()
 		if err != nil {
-			return "", fmt.Errorf("failed to get home directory: %w", err)
+			return "", fmt.Errorf("failed to get user config directory: %w", err)
 		}
-		appDataDir = filepath.Join(homeDir, ".config")
+		appDataDir = configDir
 	}
 
 	// Create the application-specific directory path

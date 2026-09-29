@@ -10,7 +10,7 @@ import {
 const TEMPLATE_KEY = 'qr_studio_templates';
 const SETTINGS_PREFIX = 'qr_studio_settings_';
 const MIGRATION_KEY = 'qr_studio_migration_v2_status';
-export const APP_VERSION = '1.1.1';
+export const APP_VERSION = '1.1.2';
 
 interface TemplateSummary {
   id: string;

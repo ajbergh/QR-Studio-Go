@@ -33,7 +33,7 @@ Final documentation review: July 21, 2026
 
 | Work item | Status | Implementation |
 |---|---|---|
-| Add CI | Complete | Type checking, unit tests, web build, Chromium E2E, npm audit, Go test/vet/vulnerability scan, Windows Wails build |
+| Add CI | Complete | Type checking, unit tests, web build, Chromium E2E, npm audit, Go test/vet/vulnerability scan, native Windows, macOS, and Linux Wails builds |
 | Decompose frontend | Complete | Focused content, design, preview, library, preferences, domain, and platform modules replace the original monolith |
 | Reproducible packaging | Complete | `npm ci`, module verification, isolated multi-architecture staging, SHA-256 checksums |
 | Accessibility improvements | Complete | Semantic tabs/dialogs, labels, keyboard workflows, visible focus, reduced-motion support |
@@ -52,7 +52,7 @@ All merge gates completed successfully before the final documentation pass:
 - Go module verification;
 - Go tests and `go vet`;
 - Go vulnerability scan with Go 1.25.12 and `golang.org/x/sys` 0.44.0;
-- Windows Wails production build and executable artifact upload.
+- Native Windows, macOS, and Linux Wails production builds and artifact uploads.
 
 The documentation-only final pass must repeat the repository CI checks before
 merge. Native macOS signing/notarization and Windows code signing require

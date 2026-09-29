@@ -44,9 +44,8 @@ go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 ```
 
 A change that affects desktop bindings, persistence, native assets, or packaging
-must also pass an appropriate Wails production build. The CI workflow validates
-the Windows build and uploads the resulting executable; macOS and Linux changes
-must be validated on their native platforms before release.
+must also pass an appropriate Wails production build. CI validates Windows,
+macOS, and Linux builds on native runners and uploads the resulting artifacts.
 
 ## Architecture rules
 

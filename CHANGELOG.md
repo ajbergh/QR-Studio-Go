@@ -2,6 +2,17 @@
 
 All notable changes to QR Studio are documented in this file.
 
+## 1.1.2 — 2026-09-28
+
+### Added
+
+- Native macOS universal and Linux amd64 builds in CI, with a tag-driven workflow that publishes Windows, macOS, and Linux release assets and checksums together.
+
+### Fixed
+
+- Packaged Linux executables in a tarball that preserves execute permissions and macOS app bundles with their native metadata.
+- Selected the Linux database directory using `XDG_CONFIG_HOME` when configured.
+
 ## 1.1.1 — 2026-09-28
 
 ### Fixed

@@ -92,9 +92,8 @@ go run golang.org/x/vuln/cmd/govulncheck@latest ./...
 
 The test suite covers payload escaping and validation, real PNG output, design
 persistence, invalid-content blocking, template image preservation, duplicate
-handling, and transactional import reporting. CI also performs a native Windows
-Wails production build and uploads the resulting executable as a workflow
-artifact.
+handling, and transactional import reporting. CI builds native Windows, macOS,
+and Linux applications and uploads their release archives as workflow artifacts.
 
 ## Production builds
 
@@ -117,7 +116,14 @@ Run these commands from the repository root with PowerShell 7:
 
 Build scripts use `npm ci`, `go mod download`, and `go mod verify`; they do not
 rewrite dependency metadata. Multi-architecture outputs are staged under
-`output/<platform>/` and accompanied by SHA-256 checksum files.
+`output/<platform>/` and accompanied by SHA-256 checksum files. The macOS zip
+contains a universal `.app` bundle; the Linux tarball preserves the executable
+bit. Linux builds use WebKit2GTK 4.1 and require GTK 3 and WebKit2GTK 4.1 at
+runtime. macOS builds are currently unsigned and not notarized.
+
+Pushing a version tag such as `v1.1.2` runs the desktop release workflow on
+native Windows, macOS, and Linux runners. It checks each package and checksum
+before publishing all three platforms in one GitHub release.
 
 ## Architecture
 
@@ -164,10 +170,9 @@ Export a design package before clearing browser or application data.
 
 ## Release status
 
-Version `1.1.0` is the stabilization and security-hardening release. It replaces
-the original broad Wails binding, unifies export behavior, fixes image-preserving
-design operations, repairs browser-to-desktop migration, makes preferences
-functional, and adds reproducible validation and packaging.
+Version `1.1.2` adds native macOS and Linux CI builds and a shared desktop
+release workflow. Version `1.1.1` fixed logo rendering and custom background
+exports. See the changelog for earlier changes.
 
 See the [changelog](CHANGELOG.md) and the
 [phase-by-phase remediation ledger](docs/REMEDIATION_STATUS.md) for detailed

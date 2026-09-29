@@ -115,7 +115,8 @@ jobs:
       - name: Check app bundle and archive
         run: |
           set -euo pipefail
-          binary=build/bin/QRStudio.app/Contents/MacOS/QRStudio
+          bundle=$(node -p "require('./wails.json').name")
+          binary="build/bin/$bundle.app/Contents/MacOS/QRStudio"
           file "$binary"
           lipo -archs "$binary" | grep -q x86_64
           lipo -archs "$binary" | grep -q arm64

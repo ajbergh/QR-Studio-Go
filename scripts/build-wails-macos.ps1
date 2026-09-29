@@ -11,6 +11,7 @@ $ProjectRoot = Split-Path $PSScriptRoot -Parent
 $FrontendDir = Join-Path $ProjectRoot 'frontend'
 $WailsBinDir = Join-Path $ProjectRoot 'build/bin'
 $OutputDir = Join-Path $ProjectRoot 'output/macos'
+$BundleName = (Get-Content (Join-Path $ProjectRoot 'wails.json') -Raw | ConvertFrom-Json).name
 
 function Require-Command([string]$Name) {
   if (-not (Get-Command $Name -ErrorAction SilentlyContinue)) { throw "Required command '$Name' is unavailable." }
@@ -60,7 +61,7 @@ foreach ($arch in $targets) {
     if ($LASTEXITCODE -ne 0) { throw "Wails build failed for darwin/$arch." }
   } finally { Pop-Location }
 
-  $bundle = Join-Path $WailsBinDir 'QRStudio.app'
+  $bundle = Join-Path $WailsBinDir "$BundleName.app"
   if (-not (Test-Path $bundle)) { throw "Expected app bundle was not produced: $bundle" }
   $binary = Join-Path $bundle 'Contents/MacOS/QRStudio'
   if (-not (Test-Path $binary)) { throw "App executable is missing: $binary" }
